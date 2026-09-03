@@ -240,3 +240,46 @@ Unresolved / next-phase priorities:
 - Add a blog category index page (`/blog/category/[name]`) — currently category filtering is client-side only on /blog.
 - Add search across the whole site (blog + landing sections).
 - Add reading-time aggregate on author pages.
+
+---
+Task ID: review-6
+Agent: main (webDevReview cron loop, round 6)
+Task: QA + blog category index pages + clickable category badges + sitemap expansion
+
+Current project status / assessment:
+- Project stable from review-5 (all routes 200, author pages + related posts live, 7 blog posts seeded).
+- agent-browser QA confirmed a clear feature gap: category filtering on /blog was client-side only — there was NO dedicated category page (`/blog/category/[name]` → 404), so categories weren't SEO-indexable or shareable as URLs. Category badges on blog cards were non-clickable `<span>`s.
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- NEW FEATURE — Category index page (`/blog/category/[name]`): server component mirroring the author-page pattern. `resolveCategory()` fetches distinct categories from the DB and matches by slug. Renders a hero with a gold-gradient rounded-square Layers icon, category name (serif), long description, article count, then reuses `<BlogBrowser>` (filter + search + grid). `generateMetadata` for per-category OG tags. 404 for unknown categories. CATEGORY_META map provides SEO descriptions for each known category.
+- NEW FEATURE — Clickable category badges on blog cards: converted the `<span class="blog-card-cat">` to a `role="link"` element with `onClick` (stopPropagation + preventDefault so the parent card link doesn't fire) + keyboard handler (Enter/Space). Uses `useRouter().push()` to navigate to `/blog/category/[slug]`. Added ARIA labels + title for accessibility. Added `a.blog-card-cat:hover` CSS (brightness + lift).
+- SEO — Sitemap expansion: `/sitemap.xml` now includes the `/blog` index page (priority 0.9, daily), all 4 category pages (priority 0.6, weekly), and all 4 author pages (priority 0.5, weekly) in addition to the 7 blog posts. Total 17 entries (was 8).
+- STYLING: Added `.category-icon-lg` CSS (88px gold-gradient rounded-square with Layers icon, gold glow, responsive 64px on mobile).
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Category pages: `/blog/category/trading-tips` 200, `/market-analysis` 200, `/sebi-updates` 200, `/course-updates` 200, `/nobody` 404.
+- Category page content verified: heading "Trading Tips", gold Layers icon, bio ("Tactics you can apply..."), "2 articles" count, "All articles in Trading Tips" section, 2 post cards.
+- Clickable badges: 7 badges on /blog now have `role="link"` + `aria-label="View all posts in [category]"`. Clicking badge #4 (SEBI Updates) navigated to `/blog/category/sebi-updates` (verified URL + heading).
+- Sitemap: 17 entries — 2 static + 7 posts + 4 categories + 4 authors (verified via curl).
+- VLM confirmed category page renders all elements correctly (gold icon hero, title, description, count, filter pills, search, 2-card grid with category badges). Design language "excellent and professional".
+- Screenshot saved: `download/category-page-full.png`.
+
+Stage Summary:
+- Blog category index pages live — categories are now first-class, SEO-indexable, shareable URLs.
+- Category badges on blog cards are clickable, creating a discoverable card → category → posts navigation loop.
+- Sitemap fully expanded to cover the entire blog ecosystem (posts, categories, authors).
+- Blog navigation is now complete: /blog index → category pages → author pages → post detail → related posts → prev/next.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add site-wide search (blog + landing sections).
+- Add a "popular posts" / "trending" widget on the blog index.
+- Add reading-time aggregate on author + category pages.

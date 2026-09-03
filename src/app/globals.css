@@ -907,3 +907,32 @@ html { scroll-behavior: smooth; }
 @media (max-width: 640px) {
   .author-avatar-lg { width: 64px; height: 64px; font-size: 22px; }
 }
+
+/* ══════════ Category page ══════════ */
+.category-icon-lg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 20px;
+  color: #E2B15C;
+  background: linear-gradient(135deg, rgba(226,177,92,0.18), rgba(226,177,92,0.05));
+  border: 1px solid rgba(226,177,92,0.3);
+  box-shadow: 0 0 40px -8px rgba(226,177,92,0.25);
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .category-icon-lg { width: 64px; height: 64px; border-radius: 14px; }
+  .category-icon-lg svg { width: 24px; height: 24px; }
+}
+
+/* Clickable category badge on blog cards */
+a.blog-card-cat {
+  cursor: pointer;
+  transition: filter .2s, transform .2s;
+}
+a.blog-card-cat:hover {
+  filter: brightness(1.2);
+  transform: translateY(-1px);
+}

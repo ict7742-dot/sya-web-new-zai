@@ -1,7 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Search, Calendar, ArrowUpRight, FileText } from 'lucide-react';
 
 export interface BlogListPost {
@@ -39,6 +40,16 @@ function fmt(d: string) {
 export function BlogBrowser({ posts, categories }: BlogBrowserProps) {
   const [activeCat, setActiveCat] = useState<string>('All');
   const [query, setQuery] = useState('');
+  const router = useRouter();
+
+  /** Navigate to the category page when a card's category badge is clicked.
+   *  Stops propagation so the parent card link doesn't also fire. */
+  const goToCategory = (e: MouseEvent, category: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const slug = category.toLowerCase().replace(/\s+/g, '-');
+    router.push(`/blog/category/${slug}`);
+  };
 
   const filtered = useMemo(() => {
     let list = posts;
@@ -131,9 +142,20 @@ export function BlogBrowser({ posts, categories }: BlogBrowserProps) {
                   </div>
                 )}
                 <span
+                  role="link"
+                  tabIndex={0}
+                  onClick={(e) => goToCategory(e, post.category)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      goToCategory(e as unknown as MouseEvent, post.category);
+                    }
+                  }}
                   className={`blog-card-cat ${
                     CATEGORY_COLORS[post.category] ?? CATEGORY_COLORS.General
                   }`}
+                  aria-label={`View all posts in ${post.category}`}
+                  title={`View all posts in ${post.category}`}
                 >
                   {post.category}
                 </span>
