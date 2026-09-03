@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 // Note: editing this file triggers a full dev-server restart (clears the
-// cached Prisma client singleton when the schema changes). v3 — views field.
+// cached Prisma client singleton when the schema changes). v4 — marketing CSP.
 const nextConfig: NextConfig = {
   output: "standalone",
   // Surface type errors at build time instead of silently shipping them.
@@ -18,8 +18,10 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
-  // Site-wide security headers (also covers non-API routes). vercel.json only
-  // applied these to /api/* so the marketing pages shipped without them.
+  // Site-wide security headers. Marketing pages get a permissive-but-safe CSP
+  // that allows inline styles + scripts (needed for Next.js runtime + JSON-LD
+  // blocks) but blocks mixed content, frame embedding, and third-party origins
+  // we don't control. API routes get the strict 'none' CSP.
   async headers() {
     const security = [
       { key: "X-Content-Type-Options", value: "nosniff" },
@@ -29,10 +31,24 @@ const nextConfig: NextConfig = {
       { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
       { key: "X-DNS-Prefetch-Control", value: "on" },
     ];
+    // Marketing-page CSP: allow self for scripts/styles/images/fonts,
+    // allow inline (needed for Next.js hydration + JSON-LD + styled
+    // components), allow data: for SVG favicons, block everything else.
+    const marketingCsp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: https:",
+      "connect-src 'self'",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ");
     return [
-      { source: "/(.*)", headers: security },
-      // Extra hardening for API responses — never let the browser render API
-      // JSON as HTML or frame it.
+      { source: "/(.*)", headers: [...security, { key: "Content-Security-Policy", value: marketingCsp }] },
+      // Override with strict CSP for API responses — no scripts, no styles,
+      // no frames, no anything.
       {
         source: "/api/(.*)",
         headers: [

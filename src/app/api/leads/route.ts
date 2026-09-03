@@ -191,18 +191,31 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Default JSON response
+  // Default JSON response — supports pagination via ?page=N&pageSize=M
   try {
-    const total = await db.lead.count();
-    const recent = await db.lead.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: {
-        name: true, phone: true, email: true, interest: true,
-        createdAt: true, utmSource: true, utmMedium: true, utmCampaign: true,
-      },
+    const page = Math.max(parseInt(searchParams.get('page') ?? '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') ?? '10', 10) || 10, 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const [total, recent] = await Promise.all([
+      db.lead.count(),
+      db.lead.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: {
+          name: true, phone: true, email: true, interest: true,
+          createdAt: true, utmSource: true, utmMedium: true, utmCampaign: true,
+        },
+      }),
+    ]);
+    return NextResponse.json({
+      total,
+      recent,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     });
-    return NextResponse.json({ total, recent });
   } catch (error) {
     console.error('Leads fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch leads' }, { status: 500 });

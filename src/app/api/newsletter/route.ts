@@ -119,15 +119,28 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Default JSON: total + 10 most recent
+  // Default JSON — supports pagination via ?page=N&pageSize=M
   try {
-    const total = await db.newsletterSubscriber.count();
-    const recent = await db.newsletterSubscriber.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-      select: { email: true, source: true, active: true, createdAt: true },
+    const page = Math.max(parseInt(searchParams.get('page') ?? '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') ?? '10', 10) || 10, 1), 50);
+    const skip = (page - 1) * pageSize;
+
+    const [total, recent] = await Promise.all([
+      db.newsletterSubscriber.count(),
+      db.newsletterSubscriber.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize,
+        select: { email: true, source: true, active: true, createdAt: true },
+      }),
+    ]);
+    return NextResponse.json({
+      total,
+      recent,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
     });
-    return NextResponse.json({ total, recent });
   } catch (error) {
     console.error('Newsletter fetch error:', error);
     return NextResponse.json({ error: 'Failed to fetch subscribers' }, { status: 500 });

@@ -1,0 +1,12 @@
+import { NextResponse } from 'next/server';
+import { ADMIN_COOKIE, adminCookieOptions } from '@/lib/auth';
+
+/**
+ * POST /api/auth/logout
+ * Clears the admin session cookie.
+ */
+export async function POST() {
+  const res = NextResponse.json({ success: true });
+  res.cookies.set(ADMIN_COOKIE, '', { ...adminCookieOptions, maxAge: 0 });
+  return res;
+}

@@ -137,7 +137,7 @@ const emptyBlogForm: BlogFormData = {
 
 export default function AdminPage() {
   // Auth
-  const [token, setToken] = useState<string | null>(null);
+  const [authed, setAuthed] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -184,19 +184,25 @@ export default function AdminPage() {
     setLoginLoading(true);
     setLoginError('');
     try {
-      const res = await fetch('/api/leads', {
-        headers: { Authorization: `Bearer ${pw}` },
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw }),
       });
       if (!res.ok) {
         setLoginError('Invalid password. Please try again.');
         setLoginLoading(false);
         return;
       }
-      const data = await res.json();
-      sessionStorage.setItem('sya_admin_token', pw);
-      setToken(pw);
-      setLeads(data.recent || []);
-      setTotalLeads(data.total || 0);
+      // Cookie is now set by the server (httpOnly, not readable by JS).
+      // Fetch initial leads data.
+      setAuthed(true);
+      const leadsRes = await fetch('/api/leads');
+      if (leadsRes.ok) {
+        const data = await leadsRes.json();
+        setLeads(data.recent || []);
+        setTotalLeads(data.total || 0);
+      }
       setLoginLoading(false);
     } catch {
       setLoginError('Network error. Please try again.');
@@ -204,26 +210,35 @@ export default function AdminPage() {
     }
   }, []);
 
-  const doLogout = () => {
-    sessionStorage.removeItem('sya_admin_token');
-    setToken(null);
+  const doLogout = async () => {
+    try { await fetch('/api/auth/logout', { method: 'POST' }); } catch { /* ignore */ }
+    setAuthed(false);
     setPassword('');
   };
 
+  // Check for existing session (cookie is sent automatically).
   useEffect(() => {
-    const stored = sessionStorage.getItem('sya_admin_token');
-    if (stored) doLogin(stored);
-  }, [doLogin]);
+    (async () => {
+      try {
+        const res = await fetch('/api/leads');
+        if (res.ok) {
+          setAuthed(true);
+          const data = await res.json();
+          setLeads(data.recent || []);
+          setTotalLeads(data.total || 0);
+        }
+      } catch { /* not logged in */ }
+    })();
+  }, []);
 
   // ─── Leads ───
 
   const fetchLeads = useCallback(async () => {
-    if (!token) return;
+    if (!authed) return;
     setLeadsLoading(true);
     setLeadsError('');
     try {
       const res = await fetch('/api/leads', {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
         doLogout();
@@ -238,13 +253,12 @@ export default function AdminPage() {
     } finally {
       setLeadsLoading(false);
     }
-  }, [token]);
+  }, [authed]);
 
   const exportCsv = async () => {
-    if (!token) return;
+    if (!authed) return;
     try {
       const res = await fetch('/api/leads?format=csv', {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
         doLogout();
@@ -267,17 +281,16 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (token && tab === 'leads') fetchLeads();
-  }, [token, tab, fetchLeads]);
+    if (authed && tab === 'leads') fetchLeads();
+  }, [authed, tab, fetchLeads]);
 
   // ─── Subscribers ───
   const fetchSubscribers = useCallback(async () => {
-    if (!token) return;
+    if (!authed) return;
     setSubscribersLoading(true);
     setSubscribersError('');
     try {
       const res = await fetch('/api/newsletter', {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
         doLogout();
@@ -292,13 +305,12 @@ export default function AdminPage() {
     } finally {
       setSubscribersLoading(false);
     }
-  }, [token]);
+  }, [authed]);
 
   const exportSubscribersCsv = async () => {
-    if (!token) return;
+    if (!authed) return;
     try {
       const res = await fetch('/api/newsletter?format=csv', {
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
         doLogout();
@@ -321,8 +333,8 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (token && tab === 'subscribers') fetchSubscribers();
-  }, [token, tab, fetchSubscribers]);
+    if (authed && tab === 'subscribers') fetchSubscribers();
+  }, [authed, tab, fetchSubscribers]);
 
   // ─── Blogs ───
 
@@ -342,8 +354,8 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => {
-    if (token && tab === 'blogs') fetchBlogs();
-  }, [token, tab, fetchBlogs]);
+    if (authed && tab === 'blogs') fetchBlogs();
+  }, [authed, tab, fetchBlogs]);
 
   // ─── Blog CRUD ───
 
@@ -400,7 +412,7 @@ export default function AdminPage() {
 
   const handleBlogSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!token || !validateBlogForm()) return;
+    if (!authed || !validateBlogForm()) return;
 
     setBlogFormLoading(true);
     setBlogFormError('');
@@ -437,7 +449,6 @@ export default function AdminPage() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
@@ -470,13 +481,12 @@ export default function AdminPage() {
   };
 
   const togglePublish = async (post: BlogPost) => {
-    if (!token) return;
+    if (!authed) return;
     try {
       const res = await fetch(`/api/blogs/${encodeURIComponent(post.slug)}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ published: !post.published }),
       });
@@ -499,12 +509,11 @@ export default function AdminPage() {
   };
 
   const confirmDelete = async () => {
-    if (!token || !deleteSlug) return;
+    if (!authed || !deleteSlug) return;
     setDeleteLoading(true);
     try {
       const res = await fetch(`/api/blogs/${encodeURIComponent(deleteSlug)}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.status === 401) {
         doLogout();
@@ -544,7 +553,7 @@ export default function AdminPage() {
 
   /* ═══════════════ Render: Login ═══════════════ */
 
-  if (!token) {
+  if (!authed) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4 bg-[#070B14]">
         <div className="w-full max-w-sm">
