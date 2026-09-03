@@ -51,11 +51,14 @@ export function Newsletter({
         className={
           variant === 'card'
             ? 'newsletter-card flex flex-col items-center gap-3 py-8 text-center'
-            : 'flex items-center gap-3'
+            : 'flex flex-col items-center gap-3 py-4 text-center'
         }
       >
         <CheckCircle2 className="h-7 w-7 text-[#35D49A]" />
         <p className="text-[15px] font-medium text-[#E8EBF2]">{message}</p>
+        <p className="text-xs text-[#525C70]">
+          Every email includes a one-click unsubscribe link. We never share your address.
+        </p>
         <button
           onClick={() => setStatus('idle')}
           className="mt-1 text-xs text-[#98A2B8] underline-offset-2 hover:text-[#E2B15C] hover:underline"

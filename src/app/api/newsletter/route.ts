@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
 
@@ -55,10 +56,13 @@ export async function POST(request: NextRequest) {
 
     // Upsert: if already subscribed, just reactivate silently so we never
     // leak whether an email is already on the list (anti-enumeration).
+    // Generate a fresh opaque unsubscribe token on each (re)subscribe so the
+    // user always has a valid one-click opt-out link (CAN-SPAM / GDPR).
+    const unsubscribeToken = randomBytes(24).toString('hex');
     await db.newsletterSubscriber.upsert({
       where: { email },
-      update: { active: true, source },
-      create: { email, source, active: true },
+      update: { active: true, source, unsubscribeToken },
+      create: { email, source, active: true, unsubscribeToken },
     });
 
     return NextResponse.json({

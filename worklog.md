@@ -148,3 +148,48 @@ Unresolved / next-phase priorities:
 - Consider encrypting PII (phone/email) at rest for SEBI compliance.
 - Add an unsubscribe route/token for newsletter (currently subscribers can't self-unsubscribe).
 - Wire the OG image route into a fallback for non-existent slugs (currently returns a generic "Insights" card — acceptable).
+
+---
+Task ID: review-4
+Agent: main (webDevReview cron loop, round 4)
+Task: QA current state + newsletter unsubscribe compliance flow + brand trust polish
+
+Current project status / assessment:
+- Project stable from review-3 (all routes 200, OG images live, admin subscribers tab live, ToC highlighting live).
+- agent-browser + curl QA confirmed the documented compliance gap: newsletter subscribers had NO way to self-unsubscribe (`/unsubscribe` → 404, `/api/newsletter/unsubscribe` → 404). CAN-SPAM/GDPR require a working opt-out — this was the highest-priority fix.
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- Schema: Added `unsubscribeToken String @unique` + `updatedAt` to `NewsletterSubscriber` model + index. Ran `prisma db push --force-reset` (dev DB reset acceptable — existing subscribers were test data).
+- Subscribe API (`POST /api/newsletter`): now generates a fresh 24-byte hex (`randomBytes(24).toString('hex')`) opaque unsubscribe token on each (re)subscribe. Token stored on the subscriber record.
+- NEW — Unsubscribe API (`POST /api/newsletter/unsubscribe`): accepts `{ token }`, validates format (`/^[a-f0-9]{48}$/`), deactivates the matching subscriber. Anti-enumeration: always returns success whether or not the token existed (only invalid-format tokens get a 400). Fail-closed error handling.
+- NEW — Unsubscribe page (`/unsubscribe?token=...`): server component validates the token format from searchParams, then renders either the confirm UI (valid token) or an "Invalid link" error state (missing/malformed token). Includes the SYA brand logo + wordmark at the top (anti-phishing trust signal, per VLM feedback).
+- NEW — `<UnsubscribedForm>` client component: confirm screen ("Yes, unsubscribe me" / "Keep me subscribed") → success state with green checkmark and "Back to Insights" CTA. Loading + error states.
+- Newsletter component (`<Newsletter>`): success state now displays a compliance note — "Every email includes a one-click unsubscribe link. We never share your address." — so users know their opt-out rights at signup time.
+- `robots: noindex/nofollow` on the unsubscribe page (shouldn't be indexed/searchable).
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/admin` 200, `/unsubscribe` 200, `/unsubscribe?token=abc` 200, `/api/newsletter` 401 (fail-closed).
+- Full unsubscribe flow: subscribe → generates 48-char hex token → POST `/api/newsletter/unsubscribe` with real token → `{"success":true,...}` (subscriber deactivated) → invalid token format → 400 with friendly message.
+- Unsubscribe page: valid token shows "Confirm unsubscribe" with both buttons; clicking confirm → heading changes to "You're unsubscribed"; invalid/missing token → "Invalid unsubscribe link" with red alert icon. Brand logo present (verified in DOM).
+- VLM rated unsubscribe page **8/10** ("high-quality, professional UI that fits the financial sector; typography elegant, spacing comfortable, user flow logical"). Suggested adding brand logo → implemented.
+- Screenshots saved: `download/unsubscribe-page.png`, `download/unsubscribe-invalid.png`, `download/unsubscribe-with-logo.png`.
+
+Stage Summary:
+- Newsletter compliance gap closed: subscribers can now self-unsubscribe via a tokenised one-click link (CAN-SPAM/GDPR compliant).
+- Anti-enumeration: unsubscribe always returns success regardless of token validity (only format errors are rejected).
+- Anti-phishing: brand logo on the unsubscribe page confirms it's the genuine SYA site.
+- Signup success message now explicitly references the unsubscribe right.
+- `/unsubscribe` route is noindex/nofollow.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add a "resubscribe" path that re-activates a deactivated subscriber (currently resubscribe via the same email regenerates the token + reactivates — already works, but could have a dedicated re-subscribe page).
+- Add an admin "send test newsletter" action (compose + send to active subscribers) — requires an email provider integration.
+- Add a blog author profile page (`/blog/author/[name]`) with their posts.

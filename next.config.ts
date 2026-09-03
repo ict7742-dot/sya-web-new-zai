@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 // Note: editing this file triggers a full dev-server restart (clears the
-// cached Prisma client singleton when the schema changes).
+// cached Prisma client singleton when the schema changes). v2 — unsubscribe.
 const nextConfig: NextConfig = {
   output: "standalone",
   // Surface type errors at build time instead of silently shipping them.
