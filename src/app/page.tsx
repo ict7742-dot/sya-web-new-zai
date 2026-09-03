@@ -30,6 +30,7 @@ import {
   ChevronUp,
   Cookie,
 } from 'lucide-react';
+import { SearchTrigger } from '@/components/search-trigger';
 
 /* ═══════════════ Types & Data ═══════════════ */
 
@@ -1005,6 +1006,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-3">
+            <SearchTrigger className="hidden sm:inline-flex" />
             <button
               onClick={() => handleInterest('account', 'Demat account onboarding')}
               className="btn btn-primary hidden sm:inline-flex !py-2.5 !px-5 !text-[13px]"

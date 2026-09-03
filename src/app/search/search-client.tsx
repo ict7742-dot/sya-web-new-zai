@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, Loader2, FileText, Calendar, ArrowUpRight, X } from 'lucide-react';
@@ -29,6 +29,26 @@ function fmt(d: string) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+  });
+}
+
+/** Escape regex special chars in a string. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Highlight all occurrences of each search term within text by wrapping
+ *  them in <mark>. Returns an array of strings + <mark> elements safe for
+ *  React rendering (no dangerouslySetInnerHTML). */
+function highlight(text: string, query: string): ReactNode[] {
+  const terms = query.trim().split(/\s+/).filter((t) => t.length >= 2);
+  if (terms.length === 0) return [text];
+
+  const pattern = new RegExp(`(${terms.map(escapeRegex).join('|')})`, 'gi');
+  const parts = text.split(pattern);
+  return parts.map((part, i) => {
+    const isMatch = terms.some((t) => t.toLowerCase() === part.toLowerCase());
+    return isMatch ? <mark key={i} className="search-highlight">{part}</mark> : part;
   });
 }
 
@@ -208,11 +228,11 @@ export function SearchClient({ initialQuery }: { initialQuery: string }) {
               </div>
               <div className="flex flex-1 flex-col p-5">
                 <h3 className="line-clamp-2 font-[family-name:var(--font-fraunces)] text-[17px] font-semibold leading-snug text-[#E8EBF2] transition-colors group-hover:text-[#E2B15C]">
-                  {post.title}
+                  {highlight(post.title, query)}
                 </h3>
                 {post.excerpt && (
                   <p className="mt-2.5 line-clamp-3 text-[13.5px] leading-relaxed text-[#98A2B8]">
-                    {post.excerpt}
+                    {highlight(post.excerpt, query)}
                   </p>
                 )}
                 <div className="mt-auto flex items-center justify-between pt-5 text-xs text-[#525C70]">

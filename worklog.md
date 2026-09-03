@@ -377,3 +377,45 @@ Unresolved / next-phase priorities:
 - Add a "popular posts" / "trending" widget on the blog index.
 - Add reading-time aggregate on author + category pages.
 - Add the SearchTrigger to the main landing page header (currently only on /blog).
+
+---
+Task ID: review-9
+Agent: main (webDevReview cron loop, round 9)
+Task: QA + landing header search trigger + search result highlighting
+
+Current project status / assessment:
+- Project stable from review-8 (all routes 200, global Cmd/Ctrl+K command palette live).
+- agent-browser QA confirmed two documented gaps: (1) no search trigger in the landing page header (palette was global but not discoverable from the main page), (2) no search result highlighting (matched terms weren't bolded in results).
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- NEW FEATURE — Landing header search trigger: added `<SearchTrigger className="hidden sm:inline-flex" />` to the landing page header (`#siteHeader`), positioned between the nav links and the "Open Demat Account" CTA. Clicking it dispatches the Cmd+K event to open the global command palette. Hidden on mobile (sm:inline-flex) to avoid header crowding.
+- NEW FEATURE — Search result highlighting: added a `highlight()` helper in `search-client.tsx` that splits text on a regex of the query terms and wraps matches in `<mark className="search-highlight">`. Applied to both result card titles and excerpts. Uses React's safe array rendering (no dangerouslySetInnerHTML). Escapes regex special chars to prevent pattern injection. Only highlights terms ≥2 chars.
+- STYLING: Added `.search-highlight` CSS (gold background tint, gold text, 3px border radius, semibold weight) — matches the site's gold accent system.
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/search` 200, `/admin` 200.
+- Landing header: search trigger present in `#siteHeader` ("Search…Ctrl K"). Clicking opens the command palette (verified paletteOpen:true).
+- Search highlighting: `/search?q=options` → `<mark class="search-highlight">Options</mark>` wrapping the matched term in both titles and excerpts (verified via innerHTML). "Understanding Implied Volatility Before Buying **Options**".
+- VLM rated search highlighting **9/10** — "gold highlighting is perfectly executed for this dark theme... immediately draws the eye to the keyword."
+- VLM rated landing header **9/10** — "search trigger is clearly visible and well-integrated... header is exceptionally clean and professional... top-tier execution for a financial services platform."
+- Screenshots saved: `download/search-highlighting.png`, `download/landing-header-search.png`.
+
+Stage Summary:
+- Landing page header now has a visible, clickable search trigger — the global Cmd+K palette is discoverable from the main entry point.
+- Search results highlight matched terms in gold, improving scannability and UX.
+- Both gaps from review-8's next-phase priorities closed.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add a "popular posts" / "trending" widget on the blog index.
+- Add reading-time aggregate on author + category pages.
+- Add highlighting to the command palette results (currently only on /search page).
+- Add blog cover image generation (AI-generated hero images for posts without coverImage).

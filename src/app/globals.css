@@ -1179,3 +1179,12 @@ a.blog-card-cat:hover {
   .cmdk-hints { display: none; }
   .cmdk-footer { justify-content: center; }
 }
+
+/* ══════════ Search result highlighting ══════════ */
+.search-highlight {
+  background: rgba(226, 177, 92, 0.22);
+  color: #F0CD8F;
+  padding: 0 2px;
+  border-radius: 3px;
+  font-weight: 600;
+}
