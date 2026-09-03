@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
+import { CommandPalette } from "@/components/command-palette";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -170,6 +171,8 @@ export default function RootLayout({
           }}
         />
         {children}
+        {/* Global Cmd/Ctrl+K search palette — available on every page */}
+        <CommandPalette />
       </body>
     </html>
   );

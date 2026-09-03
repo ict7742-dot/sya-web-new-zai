@@ -326,3 +326,54 @@ Unresolved / next-phase priorities:
 - Add search result highlighting (bold the matched term in titles/excerpts).
 - Add a global search shortcut (Cmd/Ctrl+K) that opens the search from any page.
 - Add reading-time aggregate on author + category pages.
+
+---
+Task ID: review-8
+Agent: main (webDevReview cron loop, round 8)
+Task: QA + global Cmd/Ctrl+K search command palette + visible trigger button
+
+Current project status / assessment:
+- Project stable from review-7 (all routes 200, search API + search page live).
+- agent-browser QA confirmed a documented gap: no global keyboard shortcut for search — users had to navigate to /blog or /search to search. No command palette existed.
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- NEW FEATURE — Global command palette (`<CommandPalette>`): client component mounted once in the root layout so it's available on every page. Opens with Cmd/Ctrl+K (toggles on repeat), closes with Escape or backdrop click. Body scroll locked when open. Features:
+  - Large search input (autofocus), debounced (250ms) live search via `/api/search?limit=8`.
+  - Suggested searches chips (options, SEBI, position sizing, NIFTY, iron condor) when empty.
+  - Live result list: icon, title (truncated), category badge (color-coded), author. Active item highlighted in gold.
+  - Keyboard navigation: ↑/↓ to move, Enter to open the active post, Escape to close.
+  - Footer: "View all results" link → `/search?q=...` + keyboard hints (↑↓ navigate, ↵ open, esc close).
+  - 3 states: suggestions, results, no-results (with "Open full search" fallback).
+  - Animations: fade-in overlay, slide-in modal.
+- NEW FEATURE — Visible search trigger (`<SearchTrigger>`): a button styled with the search icon + "Search…" label + ⌘K/Ctrl K kbd hint (platform-detected via lazy useState initializer). Dispatches the same Cmd+K keyboard event so a single source of truth controls the palette. Hides the kbd hint on mobile. Placed on the blog index hero next to the "Full search page" link.
+- Mounted `<CommandPalette />` in `src/app/layout.tsx` (root layout) so it's global.
+- Added ~200 lines of CSS for `.cmdk-*` classes (overlay, modal, input, results, footer, trigger, responsive).
+- Lint fix: replaced `useEffect` + `setState` (flagged by `react-hooks/set-state-in-effect`) with a lazy `useState` initializer for platform detection in `<SearchTrigger>`.
+
+Verification results (agent-browser + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/search` 200, `/admin` 200, `/blog/category/trading-tips` 200.
+- Command palette: opens via Cmd+K on both /blog and / (landing) — verified global mount. Shows suggestions when empty, 2 live results for "options", 2 for "sebi". Keyboard nav: ArrowDown moves active highlight, Enter opens the post (navigated to /blog/[slug]), Escape closes. Backdrop click closes.
+- Trigger button: visible on /blog hero ("Search…Ctrl K"), click opens the palette.
+- VLM confirmed palette renders all elements correctly (modal overlay with blur, search input with ESC hint, result list with icons + category badges + authors, footer with "View all results" + keyboard hints). Design language consistent.
+- Screenshots saved: `download/cmdk-suggestions.png`, `download/cmdk-results.png`.
+
+Stage Summary:
+- Global Cmd/Ctrl+K search is now available on every page — users can search from anywhere without navigating.
+- Visible trigger button on /blog makes the feature discoverable for mobile/trackpad users.
+- Keyboard navigation (↑↓ Enter Esc) makes the palette fully accessible without a mouse.
+- Single source of truth: trigger button dispatches the same event the palette listens for.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add search result highlighting (bold the matched term in titles/excerpts).
+- Add a "popular posts" / "trending" widget on the blog index.
+- Add reading-time aggregate on author + category pages.
+- Add the SearchTrigger to the main landing page header (currently only on /blog).

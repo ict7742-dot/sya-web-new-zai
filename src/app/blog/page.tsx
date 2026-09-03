@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { db } from '@/lib/db';
 import { BlogBrowser } from './blog-browser';
 import { Newsletter } from '@/components/newsletter';
+import { SearchTrigger } from '@/components/search-trigger';
 import { FileText, Search } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -53,12 +54,13 @@ export default async function BlogIndexPage() {
             Research-driven notes on indices, options, risk and regulation — written by
             NISM-certified mentors. No tips, no hype. Just the process.
           </p>
-          <div className="reveal in d2 mt-7">
+          <div className="reveal in d2 mt-7 flex flex-wrap items-center gap-3">
+            <SearchTrigger />
             <Link
               href="/search"
-              className="btn btn-ghost inline-flex items-center gap-2"
+              className="inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
             >
-              <Search className="h-4 w-4" /> Search all articles
+              <Search className="h-4 w-4" /> Full search page
             </Link>
           </div>
         </div>
