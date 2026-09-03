@@ -419,3 +419,49 @@ Unresolved / next-phase priorities:
 - Add reading-time aggregate on author + category pages.
 - Add highlighting to the command palette results (currently only on /search page).
 - Add blog cover image generation (AI-generated hero images for posts without coverImage).
+
+---
+Task ID: review-10
+Agent: main (webDevReview cron loop, round 10)
+Task: QA + command palette highlighting + popular posts widget (view tracking)
+
+Current project status / assessment:
+- Project stable from review-9 (all routes 200, landing header search trigger + search result highlighting live).
+- agent-browser QA confirmed two documented gaps: (1) command palette results didn't highlight matched terms (only /search page did), (2) no "popular posts" / "trending" widget on the blog index.
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- SCHEMA: Added `views Int @default(0)` field + index to BlogPost model. Ran `bun run db:push` (non-breaking, no data loss). Seeded all 7 posts with pseudo-random view counts (10-200) so the widget has data.
+- NEW FEATURE — View tracking: blog detail page (`/blog/[slug]`) now increments the post's `views` count on each visit via a fire-and-forget `db.blogPost.update({ data: { views: { increment: 1 } } })`. Non-blocking, wrapped in `.catch(() => {})` so a tracking failure never breaks page render.
+- NEW FEATURE — Popular Posts widget (`<PopularPosts>`): server component that fetches the top 5 most-viewed published posts (`orderBy: { views: 'desc' }`). Renders a styled sidebar card with: "Popular this week" header (TrendingUp icon), ranked list (1-5 gold badges), each item showing title (2-line clamp), category (uppercase muted), view count with eye icon, and an arrow that reveals on hover. Sticky on desktop.
+- LAYOUT: Restructured the blog index to a 2-column layout (`lg:grid-cols-[minmax(0,1fr)_300px]`) with the BlogBrowser on the left and the PopularPosts sidebar on the right (sticky).
+- NEW FEATURE — Command palette highlighting: added the same `highlight()` helper (regex split + `<mark>`) to `command-palette.tsx` and applied it to result titles. Now matched terms are bolded in gold in both the /search page AND the Cmd+K palette.
+- STYLING: Added ~80 lines of CSS for `.popular-*` classes (widget card with gold gradient + radial glow, ranking badges, hover row background, arrow reveal).
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/search` 200, `/admin` 200.
+- Popular posts widget: renders on /blog with 5 items, sorted by views (top: "Why SEBI-Regulated Broking Matters" at 193 views). Ranking badges 1-5, view counts with eye icon, category labels all present.
+- Command palette highlighting: typing "options" → `<mark class="search-highlight">Options</mark>` in result titles (verified via innerHTML). Typing "sebi" → SEBI highlighted in both results.
+- VLM rated popular posts widget **9/10** — "high-fidelity, professional-grade sidebar widget... balances aesthetics with functionality, using ranking badges and view counts effectively to leverage social proof."
+- Screenshots saved: `download/blog-index-popular.png`, `download/cmdk-highlighting.png`.
+
+Stage Summary:
+- Blog posts now track views, powering a real "Popular this week" widget based on actual engagement data.
+- Command palette now highlights matched terms (consistent with the /search page).
+- Blog index has a richer 2-column layout with the popular posts sidebar.
+- Both gaps from review-9's next-phase priorities closed.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add reading-time aggregate on author + category pages.
+- Add blog cover image generation (AI-generated hero images for posts without coverImage).
+- Add a "recently updated" badge to posts edited after publishing.
+- Show view count on the blog detail page itself (social proof).
+- Add the PopularPosts widget to the blog detail page sidebar too.

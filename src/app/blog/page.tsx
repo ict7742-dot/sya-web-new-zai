@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { BlogBrowser } from './blog-browser';
 import { Newsletter } from '@/components/newsletter';
 import { SearchTrigger } from '@/components/search-trigger';
+import { PopularPosts } from '@/components/popular-posts';
 import { FileText, Search } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -66,9 +67,18 @@ export default async function BlogIndexPage() {
         </div>
       </section>
 
-      {/* Browser (client-interactive: filter + search) */}
+      {/* Browser (client-interactive: filter + search) + Popular sidebar */}
       <section className="wrap px-5 py-14 md:px-8 md:py-20">
-        <BlogBrowser posts={posts} categories={categories} />
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-10">
+          <div className="min-w-0">
+            <BlogBrowser posts={posts} categories={categories} />
+          </div>
+          <aside className="mt-10 lg:mt-0">
+            <div className="lg:sticky lg:top-8 space-y-6">
+              <PopularPosts />
+            </div>
+          </aside>
+        </div>
       </section>
 
       {/* Newsletter */}

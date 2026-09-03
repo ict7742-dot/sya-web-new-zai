@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Loader2, CornerDownLeft, ArrowLeft, FileText, X } from 'lucide-react';
 
@@ -12,6 +12,22 @@ interface SearchPost {
   category: string;
   author: string;
   createdAt: string;
+}
+
+/** Escape regex special chars. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Highlight matched query terms in text via <mark> (safe React rendering). */
+function highlight(text: string, query: string): ReactNode[] {
+  const terms = query.trim().split(/\s+/).filter((t) => t.length >= 2);
+  if (terms.length === 0) return [text];
+  const pattern = new RegExp(`(${terms.map(escapeRegex).join('|')})`, 'gi');
+  return text.split(pattern).map((part, i) => {
+    const isMatch = terms.some((t) => t.toLowerCase() === part.toLowerCase());
+    return isMatch ? <mark key={i} className="search-highlight">{part}</mark> : part;
+  });
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -205,7 +221,7 @@ export function CommandPalette() {
                       <FileText className="h-4 w-4" />
                     </div>
                     <div className="cmdk-result-text">
-                      <p className="cmdk-result-title">{post.title}</p>
+                      <p className="cmdk-result-title">{highlight(post.title, query)}</p>
                       <div className="cmdk-result-meta">
                         <span
                           className={`cmdk-result-cat ${

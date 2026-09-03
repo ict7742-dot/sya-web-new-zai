@@ -77,6 +77,12 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
   if (!post || !post.published) notFound();
 
+  // Increment view count (fire-and-forget, non-blocking). Uses a separate
+  // try/catch so a view-tracking failure never breaks page render.
+  db.blogPost
+    .update({ where: { id: post.id }, data: { views: { increment: 1 } } })
+    .catch(() => {});
+
   // Fetch prev/next published posts (by creation date) + related posts (same
   // category, excluding current) for article navigation.
   const [older, newer, related] = await Promise.all([
