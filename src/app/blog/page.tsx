@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { db } from '@/lib/db';
 import { BlogBrowser } from './blog-browser';
 import { Newsletter } from '@/components/newsletter';
-import { FileText } from 'lucide-react';
+import { FileText, Search } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Insights — Market Analysis, Trading Tips & SEBI Updates | Systematic Yield Analysts',
@@ -52,6 +53,14 @@ export default async function BlogIndexPage() {
             Research-driven notes on indices, options, risk and regulation — written by
             NISM-certified mentors. No tips, no hype. Just the process.
           </p>
+          <div className="reveal in d2 mt-7">
+            <Link
+              href="/search"
+              className="btn btn-ghost inline-flex items-center gap-2"
+            >
+              <Search className="h-4 w-4" /> Search all articles
+            </Link>
+          </div>
         </div>
       </section>
 

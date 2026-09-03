@@ -283,3 +283,46 @@ Unresolved / next-phase priorities:
 - Add site-wide search (blog + landing sections).
 - Add a "popular posts" / "trending" widget on the blog index.
 - Add reading-time aggregate on author + category pages.
+
+---
+Task ID: review-7
+Agent: main (webDevReview cron loop, round 7)
+Task: QA + blog search API + dedicated search page + blog index search link
+
+Current project status / assessment:
+- Project stable from review-6 (all routes 200, blog ecosystem complete: index, category, author, detail, related posts, sitemap).
+- agent-browser QA confirmed a documented feature gap: search on /blog was client-side only (filters pre-loaded posts). No server-side search API (`/api/search` → 404) and no dedicated search page (`/search` → 404). Search wasn't shareable as a URL and couldn't search across full content.
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- NEW FEATURE — Search API (`GET /api/search?q=<query>&limit=<n>`): server-side SQLite LIKE search across published blog posts (title, excerpt, content, category, author). Splits the query into terms and applies AND logic (each term must match somewhere) for relevance. Input validation: query capped at 100 chars, min 2 chars (returns friendly message otherwise), limit 1-24 (default 12). Returns lightweight card data (no full content) + total count.
+- NEW FEATURE — Search page (`/search`): server component with hero ("Find the insight you need."), reads `?q=` from searchParams to pre-populate, wraps the client component in a Suspense boundary (required for `useSearchParams`). `robots: noindex, follow`. Per-page OG metadata.
+- NEW FEATURE — `<SearchClient>` interactive component: large search input with left icon + clear button, debounced (300ms) live search, URL sync (`?q=` updates as you type), result count status text, result grid (reuses `.blog-card` styles), 3 states: empty (with suggested search chips: options, SEBI, position sizing, NIFTY), no-results (with clear button), loading spinner. Keyboard-accessible.
+- Added "Search all articles" link button to the blog index hero → `/search`.
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/admin` 200, `/search` 200, `/search?q=sebi` 200, `/api/search?q=options` 200, `/api/search?q=a` 200.
+- Search API: "options" → 2 results; "position sizing" → 2 results (multi-word AND works); "a" → "Please enter at least 2 characters." message.
+- Search page: pre-populated with "sebi" from URL → 2 results + "2 results for 'sebi'" status. Live typing "nism" → 2 results. Typing "xyznonexistent" → "No articles match your search." empty state. Clearing input → "Start typing to search" empty state with suggested chips.
+- Blog index: "Search all articles" link present → `/search`.
+- VLM confirmed search page renders all elements correctly (hero, search input with clear button, status text, 2 result cards with category badges). Design language consistent with the rest of the site.
+- Screenshots saved: `download/search-page-empty.png`, `download/search-page-results.png`.
+
+Stage Summary:
+- Blog search is now a first-class feature: server-side full-text search across all post content, shareable URLs, live debounced results.
+- Search page offers 3 clear states (empty with suggestions, results, no-results) with a polished, accessible UI.
+- Blog index now links to the search page, completing the discovery loop: index → search → category → author → post.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add a "popular posts" / "trending" widget on the blog index.
+- Add search result highlighting (bold the matched term in titles/excerpts).
+- Add a global search shortcut (Cmd/Ctrl+K) that opens the search from any page.
+- Add reading-time aggregate on author + category pages.
