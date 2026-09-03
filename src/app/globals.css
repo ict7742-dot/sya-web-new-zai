@@ -730,3 +730,152 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .markdown-body table { width: 100%; border-collapse: collapse; }
 .markdown-body th, .markdown-body td { border: 1px solid rgba(255,255,255,0.1); padding: 8px 12px; text-align: left; }
 .markdown-body th { background: rgba(255,255,255,0.04); color: #E8EBF2; font-weight: 600; }
+
+/* ══════════ Blog index + interactions ══════════ */
+.blog-hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 18% 0%, rgba(226,177,92,0.14), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 92% 18%, rgba(53,212,154,0.08), transparent 60%);
+}
+.wrap { max-width: 1160px; margin-inline: auto; }
+
+/* Category pills */
+.cat-pill {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #98A2B8;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.22,1,.36,1);
+  white-space: nowrap;
+}
+.cat-pill:hover {
+  color: #E8EBF2;
+  border-color: rgba(226,177,92,0.35);
+  background: rgba(255,255,255,0.05);
+}
+.cat-pill-active {
+  color: #0A0F1C !important;
+  background: #E2B15C !important;
+  border-color: #E2B15C !important;
+  font-weight: 600;
+}
+
+/* Blog cards */
+.blog-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: transform .35s cubic-bezier(.22,1,.36,1), border-color .3s, background .3s, box-shadow .3s;
+}
+.blog-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(226,177,92,0.35);
+  background: rgba(255,255,255,0.035);
+  box-shadow: 0 24px 50px -24px rgba(0,0,0,0.7);
+}
+.blog-card-cover {
+  position: relative;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+  background: #0C1322;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.blog-card-cat {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 6px 18px -8px rgba(0,0,0,0.6);
+}
+
+/* Share buttons */
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #98A2B8;
+  transition: all .2s;
+  cursor: pointer;
+}
+.share-btn:hover {
+  color: #E2B15C;
+  border-color: rgba(226,177,92,0.4);
+  background: rgba(226,177,92,0.08);
+  transform: translateY(-1px);
+}
+
+/* Prev / next post navigation */
+.post-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.07);
+  transition: border-color .25s, background .25s, transform .25s;
+}
+.post-nav:hover {
+  border-color: rgba(226,177,92,0.35);
+  background: rgba(255,255,255,0.035);
+  transform: translateY(-2px);
+}
+.post-nav-prev { align-items: flex-start; }
+.post-nav-next { align-items: flex-end; }
+.post-nav-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #E2B15C;
+}
+.post-nav-title {
+  font-family: var(--font-fraunces), serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #E8EBF2;
+  line-height: 1.35;
+  transition: color .2s;
+}
+.post-nav:hover .post-nav-title { color: #E2B15C; }
+
+/* Newsletter card */
+.newsletter-card {
+  border-radius: 16px;
+  padding: 32px;
+  background:
+    linear-gradient(135deg, rgba(226,177,92,0.06), rgba(53,212,154,0.03)),
+    rgba(255,255,255,0.02);
+  border: 1px solid rgba(226,177,92,0.15);
+}
+@media (max-width: 640px) {
+  .newsletter-card { padding: 24px 20px; }
+}
+
+/* Smooth-scroll for ToC anchor jumps, with offset for the reading-progress bar. */
+html { scroll-behavior: smooth; }
+:target { scroll-margin-top: 80px; }

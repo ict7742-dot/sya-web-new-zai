@@ -2,8 +2,10 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { ArrowLeft, Calendar, User, Tag } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import { ReadingProgress, ShareButtons } from '@/components/blog-interactions';
+import { Newsletter } from '@/components/newsletter';
 
 type Params = { slug: string };
 
@@ -25,60 +27,208 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   };
 }
 
+/** Rough reading-time estimate from Markdown content (~200 wpm). */
+function readingTime(content: string): number {
+  const words = content.trim().split(/\s+/).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+/** Extract H2 headings from Markdown to build a lightweight table of contents. */
+function extractToc(content: string): { id: string; text: string }[] {
+  const lines = content.split('\n');
+  const toc: { id: string; text: string }[] = [];
+  for (const line of lines) {
+    const m = line.match(/^##\s+(.+?)\s*$/);
+    if (m) {
+      const text = m[1].replace(/[*_`]/g, '').trim();
+      const id = text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-');
+      toc.push({ id, text });
+    }
+  }
+  return toc;
+}
+
 export default async function BlogPostPage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
   const post = await db.blogPost.findUnique({ where: { slug } });
 
   if (!post || !post.published) notFound();
 
+  // Fetch prev/next published posts (by creation date) for article navigation.
+  const [older, newer] = await Promise.all([
+    db.blogPost.findFirst({
+      where: { published: true, createdAt: { lt: post.createdAt } },
+      orderBy: { createdAt: 'desc' },
+      select: { slug: true, title: true },
+    }),
+    db.blogPost.findFirst({
+      where: { published: true, createdAt: { gt: post.createdAt } },
+      orderBy: { createdAt: 'asc' },
+      select: { slug: true, title: true },
+    }),
+  ]);
+
   const fmt = (d: Date) =>
     d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  const mins = readingTime(post.content);
+  const toc = extractToc(post.content);
+  const canonical = `https://systematicyield.in/blog/${post.slug}`;
+
+  // JSON-LD Article schema for rich results.
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt ?? '',
+    datePublished: post.createdAt.toISOString(),
+    dateModified: post.updatedAt.toISOString(),
+    author: { '@type': 'Organization', name: post.author },
+    publisher: { '@type': 'Organization', name: 'Systematic Yield Analysts' },
+    mainEntityOfPage: canonical,
+    image: post.coverImage ? [post.coverImage] : undefined,
+  };
 
   return (
     <article className="min-h-screen bg-[#070B14] text-[#E8EBF2]">
-      <div className="mx-auto max-w-3xl px-5 py-16 md:px-8 md:py-24">
-        <Link
-          href="/#blog"
-          className="mb-8 inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back to Insights
-        </Link>
+      <ReadingProgress />
 
-        <div className="mb-4 flex flex-wrap items-center gap-4 text-xs uppercase tracking-[0.18em] text-[#E2B15C]">
-          <span className="inline-flex items-center gap-1.5"><Tag className="h-3.5 w-3.5" />{post.category}</span>
+      {/* Hero */}
+      <header className="relative overflow-hidden border-b border-white/[0.06]">
+        <div className="blog-hero-glow" aria-hidden />
+        <div className="wrap relative px-5 py-16 md:px-8 md:py-24">
+          <Link
+            href="/blog"
+            className="mb-8 inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
+          >
+            <ArrowLeft className="h-4 w-4" /> All Insights
+          </Link>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E2B15C]/10 px-3 py-1 text-[#E2B15C] ring-1 ring-[#E2B15C]/25">
+              <Tag className="h-3.5 w-3.5" /> {post.category}
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-[#98A2B8]">
+              <Clock className="h-3.5 w-3.5" /> {mins} min read
+            </span>
+          </div>
+
+          <h1 className="mt-5 max-w-3xl font-[family-name:var(--font-fraunces)] text-3xl font-semibold leading-[1.12] md:text-5xl">
+            {post.title}
+          </h1>
+
+          {post.excerpt && (
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#98A2B8]">{post.excerpt}</p>
+          )}
+
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/[0.08] py-4 text-sm text-[#98A2B8]">
+            <span className="inline-flex items-center gap-2">
+              <User className="h-4 w-4 text-[#E2B15C]" /> {post.author}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-[#E2B15C]" /> {fmt(post.createdAt)}
+            </span>
+            <div className="ml-auto">
+              <ShareButtons url={canonical} title={post.title} />
+            </div>
+          </div>
         </div>
+      </header>
 
-        <h1 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold leading-tight md:text-4xl">
-          {post.title}
-        </h1>
+      {/* Body + sidebar */}
+      <div className="wrap px-5 py-14 md:px-8 md:py-20">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-12">
+          <div className="min-w-0 lg:col-start-1">
+            {post.coverImage && (
+              <img
+                src={post.coverImage}
+                alt={post.title}
+                className="mb-10 aspect-[16/9] w-full rounded-xl border border-white/10 object-cover"
+              />
+            )}
 
-        {post.excerpt && (
-          <p className="mt-4 text-lg leading-relaxed text-[#98A2B8]">{post.excerpt}</p>
-        )}
+            {/* react-markdown escapes HTML by default and only renders known nodes,
+                so untrusted Markdown content can't inject scripts. */}
+            <div className="markdown-body">
+              <ReactMarkdown>{post.content}</ReactMarkdown>
+            </div>
+          </div>
 
-        <div className="mt-6 flex flex-wrap items-center gap-5 border-y border-white/10 py-4 text-sm text-[#98A2B8]">
-          <span className="inline-flex items-center gap-2">
-            <User className="h-4 w-4 text-[#E2B15C]" /> {post.author}
-          </span>
-          <span className="inline-flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-[#E2B15C]" /> {fmt(post.createdAt)}
-          </span>
-        </div>
-
-        {post.coverImage && (
-          <img
-            src={post.coverImage}
-            alt={post.title}
-            className="mt-8 aspect-[16/9] w-full rounded-xl border border-white/10 object-cover"
-          />
-        )}
-
-        {/* react-markdown escapes HTML by default and only renders known nodes,
-            so untrusted Markdown content can't inject scripts. */}
-        <div className="markdown-body mt-10">
-          <ReactMarkdown>{post.content}</ReactMarkdown>
+          {/* Table of contents sidebar (sticky on desktop) */}
+          {toc.length > 0 && (
+            <aside className="hidden lg:col-start-2 lg:block">
+              <div className="sticky top-8">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#98A2B8]">
+                  On this page
+                </p>
+                <nav className="space-y-2 border-l border-white/10">
+                  {toc.map((item) => (
+                    <a
+                      key={item.id}
+                      href={`#${item.id}`}
+                      className="-ml-px block border-l-2 border-transparent py-1 pl-4 text-[13px] leading-snug text-[#98A2B8] transition-colors hover:border-[#E2B15C] hover:text-[#E2B15C]"
+                    >
+                      {item.text}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
+
+      {/* Prev / Next navigation */}
+      {(older || newer) && (
+        <div className="border-t border-white/[0.06]">
+          <div className="wrap grid gap-4 px-5 py-12 md:grid-cols-2 md:px-8">
+            {older ? (
+              <Link
+                href={`/blog/${older.slug}`}
+                className="post-nav post-nav-prev group"
+              >
+                <span className="post-nav-label">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Older
+                </span>
+                <span className="post-nav-title">{older.title}</span>
+              </Link>
+            ) : (
+              <div className="hidden md:block" />
+            )}
+            {newer && (
+              <Link
+                href={`/blog/${newer.slug}`}
+                className="post-nav post-nav-next group md:text-right"
+              >
+                <span className="post-nav-label">
+                  Newer <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+                <span className="post-nav-title">{newer.title}</span>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Breadcrumb + Newsletter */}
+      <div className="wrap px-5 pb-24 md:px-8">
+        <nav className="mb-8 flex items-center gap-1.5 text-xs text-[#525C70]">
+          <Link href="/" className="hover:text-[#E2B15C]">Home</Link>
+          <ChevronRight className="h-3 w-3" />
+          <Link href="/blog" className="hover:text-[#E2B15C]">Insights</Link>
+          <ChevronRight className="h-3 w-3" />
+          <span className="truncate text-[#98A2B8]">{post.title}</span>
+        </nav>
+
+        <Newsletter source="blog" variant="card" />
+      </div>
+
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     </article>
   );
 }

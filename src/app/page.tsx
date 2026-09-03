@@ -1744,12 +1744,12 @@ export default function HomePage() {
                 {blogPosts.map((post, i) => (
                   <a
                     key={post.id}
-                    href="#"
-                    className={`bg-white/[0.02] border border-white/[0.08] rounded-xl overflow-hidden hover:border-[#E2B15C]/30 transition-colors reveal d${(i % 3) + 1}`}
+                    href={`/blog/${post.slug}`}
+                    className={`bg-white/[0.02] border border-white/[0.08] rounded-xl overflow-hidden hover:border-[#E2B15C]/30 hover:-translate-y-1 transition-all duration-300 reveal d${(i % 3) + 1} group`}
                   >
                     <div className="h-44 bg-white/[0.03] relative overflow-hidden">
                       {post.coverImage ? (
-                        <img src={post.coverImage} alt="" className="w-full h-full object-cover opacity-70" loading="lazy" />
+                        <img src={post.coverImage} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500" loading="lazy" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
                           <FileText className="w-10 h-10 text-white/[0.08]" />
@@ -1759,7 +1759,7 @@ export default function HomePage() {
                     </div>
                     <div className="p-5">
                       <p className="text-[10px] tracking-[0.16em] uppercase font-semibold text-[#E2B15C]">{post.category}</p>
-                      <h3 className="text-[17px] font-semibold text-white leading-snug line-clamp-2 mt-2">{post.title}</h3>
+                      <h3 className="text-[17px] font-semibold text-white leading-snug line-clamp-2 mt-2 group-hover:text-[#E2B15C] transition-colors">{post.title}</h3>
                       <p className="text-[13px] text-[#98A2B8] leading-relaxed line-clamp-3 mt-2">{post.excerpt || ''}</p>
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/[0.06]">
                         <span className="text-[12px] text-[#98A2B8]">{post.author}</span>
@@ -1768,6 +1768,15 @@ export default function HomePage() {
                     </div>
                   </a>
                 ))}
+              </div>
+            )}
+
+            {blogPosts.length > 0 && (
+              <div className="mt-10 reveal d2 text-center">
+                <a href="/blog" className="btn btn-ghost inline-flex">
+                  View all insights
+                  <ArrowRight className="w-4 h-4" />
+                </a>
               </div>
             )}
           </div>

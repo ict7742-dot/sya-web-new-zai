@@ -47,3 +47,14 @@ model BlogPost {
   @@index([createdAt])
   @@index([category])
 }
+
+model NewsletterSubscriber {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  source    String   @default("blog") // 'blog' | 'footer' | 'landing'
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([active])
+  @@index([createdAt])
+}
