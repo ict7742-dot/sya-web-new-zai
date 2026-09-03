@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Lead {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String
+  email     String
+  interest  String   // 'account' | 'courses' | 'both'
+  message   String?
+  source    String   @default("website") // 'website' | 'whatsapp' | 'referral'
+  createdAt DateTime @default(now())
+
+  // UTM tracking fields
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+  landingPage String?
+
+  @@index([interest])
+  @@index([createdAt])
+  @@index([utmSource])
+}
+
+model BlogPost {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  title     String
+  excerpt   String?
+  content   String   // Markdown content
+  coverImage String?  // URL or path to cover image
+  category  String   @default("General") // 'General' | 'Market Analysis' | 'Trading Tips' | 'Course Updates' | 'SEBI Updates'
+  author    String   @default("SYA Team")
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([published])
+  @@index([createdAt])
+  @@index([category])
+}

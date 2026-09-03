@@ -1,0 +1,2002 @@
+     1→'use client';
+     2→
+     3→import { useEffect, useRef, useState, useCallback } from 'react';
+     4→import {
+     5→  ArrowRight,
+     6→  ArrowUpRight,
+     7→  ArrowUp,
+     8→  ShieldCheck,
+     9→  BadgeCheck,
+    10→  GraduationCap,
+    11→  Cpu,
+    12→  Headphones,
+    13→  IndianRupee,
+    14→  Receipt,
+    15→  UserCheck,
+    16→  Code2,
+    17→  Zap,
+    18→  Mail,
+    19→  Phone,
+    20→  MapPin,
+    21→  Clock,
+    22→  CheckCircle2,
+    23→  X,
+    24→  Menu,
+    25→  ChevronDown,
+    26→  Star,
+    27→  MessageCircle,
+    28→  BookOpen,
+    29→  FileText,
+    30→  ChevronUp,
+    31→  Cookie,
+    32→} from 'lucide-react';
+    33→
+    34→/* ═══════════════ Types & Data ═══════════════ */
+    35→
+    36→interface UtmData {
+    37→  utmSource: string;
+    38→  utmMedium: string;
+    39→  utmCampaign: string;
+    40→  utmTerm: string;
+    41→  utmContent: string;
+    42→  landingPage: string;
+    43→}
+    44→
+    45→function captureUtm(): UtmData {
+    46→  if (typeof window === 'undefined') return { utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: '' };
+    47→  const params = new URLSearchParams(window.location.search);
+    48→  const data: UtmData = {
+    49→    utmSource: params.get('utm_source') || '',
+    50→    utmMedium: params.get('utm_medium') || '',
+    51→    utmCampaign: params.get('utm_campaign') || '',
+    52→    utmTerm: params.get('utm_term') || '',
+    53→    utmContent: params.get('utm_content') || '',
+    54→    landingPage: window.location.href.split('?')[0],
+    55→  };
+    56→  if (data.utmSource || data.utmMedium || data.utmCampaign) {
+    57→    sessionStorage.setItem('sya_utm', JSON.stringify(data));
+    58→  }
+    59→  return data;
+    60→}
+    61→
+    62→function getStoredUtm(): UtmData {
+    63→  if (typeof window === 'undefined') return { utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: '' };
+    64→  try {
+    65→    const raw = sessionStorage.getItem('sya_utm');
+    66→    if (raw) return JSON.parse(raw) as UtmData;
+    67→  } catch { /* ignore */ }
+    68→  return { utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: window.location.href.split('?')[0] };
+    69→}
+    70→
+    71→/* Form abandonment — saves partial form data to localStorage */
+    72→const ABANDON_KEY = 'sya_form_abandon';
+    73→
+    74→function saveAbandonment(data: Record<string, string>) {
+    75→  try {
+    76→    localStorage.setItem(ABANDON_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
+    77→  } catch { /* ignore */ }
+    78→}
+    79→
+    80→function clearAbandonment() {
+    81→  try { localStorage.removeItem(ABANDON_KEY); } catch { /* ignore */ }
+    82→}
+    83→
+    84→function loadAbandonment(): Record<string, string> | null {
+    85→  try {
+    86→    const raw = localStorage.getItem(ABANDON_KEY);
+    87→    if (!raw) return null;
+    88→    const data = JSON.parse(raw);
+    89→    // Only restore if less than 7 days old
+    90→    const age = Date.now() - new Date(data.savedAt).getTime();
+    91→    if (age > 7 * 24 * 60 * 60 * 1000) { clearAbandonment(); return null; }
+    92→    return data;
+    93→  } catch { return null; }
+    94→}
+    95→
+    96→interface Candle {
+    97→  o: number;
+    98→  h: number;
+    99→  l: number;
+   100→  c: number;
+   101→}
+   102→
+   103→interface SymbolData {
+   104→  sym: string;
+   105→  seed: number;
+   106→  start: number;
+   107→  vol: number;
+   108→  dec: number;
+   109→}
+   110→
+   111→interface SeriesData {
+   112→  candles: Candle[];
+   113→  prevClose: number;
+   114→  volM: number;
+   115→  tickCount: number;
+   116→}
+   117→
+   118→interface TickerItem {
+   119→  name: string;
+   120→  price: number;
+   121→  change: number;
+   122→}
+   123→
+   124→const SYMBOLS: SymbolData[] = [
+   125→  { sym: 'NIFTY 50', seed: 7, start: 24850.4, vol: 0.0011, dec: 2 },
+   126→  { sym: 'BANK NIFTY', seed: 23, start: 52340.2, vol: 0.0013, dec: 2 },
+   127→  { sym: 'RELIANCE', seed: 11, start: 1418.6, vol: 0.0016, dec: 2 },
+   128→];
+   129→
+   130→const INITIAL_TICKERS: TickerItem[] = [
+   131→  { name: 'NIFTY 50', price: 24850.4, change: 0.42 },
+   132→  { name: 'SENSEX', price: 81455.6, change: 0.38 },
+   133→  { name: 'BANK NIFTY', price: 52340.2, change: 0.55 },
+   134→  { name: 'NIFTY MIDCAP', price: 58920.1, change: 0.31 },
+   135→  { name: 'INDIA VIX', price: 13.84, change: -2.14 },
+   136→  { name: 'USD/INR', price: 84.32, change: 0.05 },
+   137→  { name: 'RELIANCE', price: 1420.5, change: 0.92 },
+   138→  { name: 'HDFCBANK', price: 1712.3, change: 0.34 },
+   139→  { name: 'TCS', price: 4102.0, change: -0.41 },
+   140→  { name: 'INFY', price: 1854.6, change: 0.63 },
+   141→  { name: 'SBIN', price: 812.4, change: 1.12 },
+   142→  { name: 'ITC', price: 492.1, change: -0.22 },
+   143→];
+   144→
+   145→/* ── Testimonials Data ── */
+   146→const TESTIMONIALS = [
+   147→  { name: 'Rohit Sharma', initials: 'RS', role: 'Options Trader · Batch 2024', rating: 5, text: 'The options course completely changed how I approach the markets. Before SYA, I was gambling with naked buys. Now I understand Greeks, position sizing, and risk management. My drawdowns dropped by 60% in the first quarter after the program.' },
+   148→  { name: 'Priya Mehta', initials: 'PM', role: 'Demat Client · since 2022', rating: 5, text: 'What I appreciate most is the honesty. No guaranteed-return promises, no pressure to overtrade. My partner at SYA actually told me to hold my mutual funds instead of churning them. That kind of integrity is rare in this industry.' },
+   149→  { name: 'Amit Jain', initials: 'AJ', role: 'Algo Student · Batch 2024', rating: 5, text: 'I came in knowing zero Python. Ten weeks later, I had a working mean-reversion strategy backtested on five years of NIFTY data. The API lab sessions were hands-on and the mentors actually trade what they teach.' },
+   150→  { name: 'Kavita Joshi', initials: 'KJ', role: 'Beginner Program · Batch 2023', rating: 4, text: 'As a complete beginner, I was nervous about joining. But the cohort size was small, the Hinglish instruction made it easy, and the lifetime access to recordings means I can revisit concepts whenever I need to. Highly recommend for anyone starting out.' },
+   151→  { name: 'Vikram Singh', initials: 'VS', role: 'F&O Trader · Demat Client', rating: 5, text: 'The zero brokerage on delivery is great, but what really matters is having someone local who picks up the phone. When the Adani crash happened, my SYA contact called me proactively to discuss my positions. That level of service is worth more than any brokerage savings.' },
+   152→  { name: 'Sneha Agarwal', initials: 'SA', role: 'Advanced Options · Batch 2024', rating: 5, text: 'The live market sessions during actual trading hours were a game-changer. Watching the mentor build and adjust an iron condor in real-time, explaining every adjustment — you cannot get that from YouTube videos. Worth every rupee.' },
+   153→];
+   154→
+   155→/* ── FAQ Data ── */
+   156→const FAQS = [
+   157→  { q: 'How do I open a Demat & Trading account through SYA?', a: 'Fill out the inquiry form above or WhatsApp us. Our team will guide you through the paperless e-KYC process. You will need your PAN card, Aadhaar, and a cancelled cheque or bank statement. Most accounts are trade-ready within 24 hours.' },
+   158→  { q: 'What brokerage charges apply?', a: 'Equity delivery trades are at zero brokerage. Intraday equity and F&O are charged at a flat ₹20 per executed order (or 0.03% of turnover, whichever is lower). Statutory charges like STT, transaction charges, GST, and SEBI turnover fees apply as per exchange norms.' },
+   159→  { q: 'Do I need prior trading experience to join a course?', a: 'Not at all. Our Foundation program is designed for people with zero market knowledge. We start from what a stock exchange is and build up to creating your own trading plan. The only prerequisite is curiosity.' },
+   160→  { q: 'Are the courses conducted online or in person?', a: 'Both. All programs are conducted live on Zoom during market hours, and we also have a Jaipur classroom option. Every session is recorded with lifetime access.' },
+   161→  { q: 'What is the relationship between SYA and Angel One?', a: 'Systematic Yield Analysts Pvt. Ltd. is an Authorized Partner (sub-broker) of Angel One Limited. Your trading account is directly with Angel One, a SEBI-registered stock broker (INZ000161534) and member of NSE, BSE, and MCX.' },
+   162→  { q: 'Do you guarantee returns or provide stock tips?', a: 'Absolutely not. SEBI regulations prohibit guaranteed-return promises. We teach process-based, risk-managed trading. Anyone offering guaranteed returns in the stock market is violating SEBI guidelines.' },
+   163→  { q: 'Is my money safe with Angel One?', a: 'Yes. Angel One is a publicly listed company regulated by SEBI. All client funds are held in segregated bank accounts as mandated by SEBI. Securities are held in dematerialized form with NSDL/CDSL.' },
+   164→  { q: 'Can I switch from my current broker to Angel One through SYA?', a: 'Yes. We can help you initiate the account transfer process. The process typically takes 5-7 business days. Your new account can be active for fresh trades within 24 hours.' },
+   165→];
+   166→
+   167→/* ── Social Proof Data ── */
+   168→const SOCIAL_PROOFS = [
+   169→  { name: 'Rahul', loc: 'Vaishali Nagar, Jaipur', action: 'opened a Demat account', mins: 3 },
+   170→  { name: 'Priya', loc: 'Malviya Nagar', action: 'enrolled in Advanced Options', mins: 7 },
+   171→  { name: 'Amit', loc: 'Mansarovar, Jaipur', action: 'completed onboarding', mins: 12 },
+   172→  { name: 'Kavita', loc: 'C-Scheme, Jaipur', action: 'joined the Foundation batch', mins: 18 },
+   173→  { name: 'Vikram', loc: 'Tonk Road', action: 'opened an account', mins: 24 },
+   174→  { name: 'Sneha', loc: 'Jagatpura, Jaipur', action: 'enrolled in Algo Trading', mins: 31 },
+   175→  { name: 'Deepak', loc: 'Raja Park', action: 'transferred from Zerodha', mins: 38 },
+   176→  { name: 'Neha', loc: 'Bani Park, Jaipur', action: 'started the Options course', mins: 45 },
+   177→];
+   178→
+   179→/* ── Course Curriculum Data ── */
+   180→const CURRICULUM: Record<string, { weeks: string; topics: string[]; outcomes: string[] }> = {
+   181→  foundation: {
+   182→    weeks: '6 weeks',
+   183→    topics: [
+   184→      'What is the stock market? Exchanges, regulators, and market participants',
+   185→      'Reading candlestick charts — single, dual, and multi-candle patterns',
+   186→      'Fundamental analysis — balance sheets, P&L, ratios, and valuations',
+   187→      'Technical indicators — RSI, MACD, Bollinger Bands, moving averages',
+   188→      'Risk management — position sizing, stop-losses, risk-reward ratios',
+   189→      'Trading psychology — managing greed, fear, and FOMO',
+   190→      'Building your first trading plan with entry/exit rules',
+   191→      'Paper trading practicum — 2 weeks of simulated execution',
+   192→    ],
+   193→    outcomes: [
+   194→      'Read any candlestick chart and identify key patterns',
+   195→      'Analyze a company\'s fundamentals before buying',
+   196→      'Apply position sizing and stop-loss to every trade',
+   197→      'Build a written, rule-based trading plan',
+   198→    ],
+   199→  },
+   200→  options: {
+   201→    weeks: '8 weeks',
+   202→    topics: [
+   203→      'Options pricing — intrinsic value, time value, and the Greeks',
+   204→      'Delta, gamma, theta, vega — how each affects your P&L',
+   205→      'Vertical spreads — bull/bear call & put spreads',
+   206→      'Iron condors, straddles, and strangles for range-bound markets',
+   207→      'Live market sessions — building and adjusting positions in real-time',
+   208→      'Implied volatility and IV rank — when options are cheap or expensive',
+   209→      'Margin management and assignment risk',
+   210→      'Building an options playbook for NIFTY and BANK NIFTY',
+   211→    ],
+   212→    outcomes: [
+   213→      'Construct and manage multi-leg options strategies',
+   214→      'Understand how Greeks drive your position P&L',
+   215→      'Adjust positions dynamically during live market hours',
+   216→      'Apply institutional-grade risk management to F&O trades',
+   217→    ],
+   218→  },
+   219→  algo: {
+   220→    weeks: '10 weeks',
+   221→    topics: [
+   222→      'Python fundamentals for traders — no prior coding assumed',
+   223→      'Working with market data — APIs, OHLCV, and pandas',
+   224→      'Backtesting frameworks — writing and testing strategy rules',
+   225→      'Mean reversion strategies — Bollinger Band, RSI, and z-score',
+   226→      'Momentum and trend-following — moving average crossovers, breakouts',
+   227→      'Angel One SmartAPI — authentication, order placement, and live deployment',
+   228→      'Risk metrics — Sharpe ratio, max drawdown, Calmar ratio, win rate',
+   229→      'Portfolio-level strategy construction and live paper trading',
+   230→    ],
+   231→    outcomes: [
+   232→      'Write, backtest, and evaluate trading strategies in Python',
+   233→      'Connect to Angel One SmartAPI for live order execution',
+   234→      'Evaluate strategies with institutional risk metrics',
+   235→      'Deploy at least one automated strategy in paper trading',
+   236→    ],
+   237→  },
+   238→};
+   239→
+   240→const LEGAL: Record<string, { t: string; b: string }> = {
+   241→  privacy: {
+   242→    t: 'Privacy Policy',
+   243→    b: `
+   244→      <p>Systematic Yield Analysts Pvt. Ltd. ("we") collects only the information you voluntarily submit through this website — your name, phone number, email address and service interest.</p>
+   245→      <p>This information is used exclusively to respond to your inquiry about broking services or education programs. We do not sell, rent or share your details with third parties, other than Angel One Limited for the limited purpose of account opening that you explicitly request.</p>
+   246→      <p><strong>UTM Tracking:</strong> When you arrive via a marketing link, we capture referral parameters (UTM source, medium, campaign) from the URL. This data is stored in your browser's session storage and attached to your inquiry to help us measure which campaigns are effective. It is not shared externally.</p>
+   247→      <p><strong>Local Storage:</strong> We use your browser's local storage to (a) remember your cookie consent preference, and (b) save partially filled form data so you do not lose progress if you navigate away. This data never leaves your browser.</p>
+   248→      <p>This website does not use third-party analytics or advertising cookies by default. If we introduce analytics in the future, you will be notified via the cookie consent banner.</p>
+   249→      <p>To access, correct or delete your information, write to connect@systematicyield.in.</p>
+   250→    `,
+   251→  },
+   252→  terms: {
+   253→    t: 'Terms & Conditions',
+   254→    b: `
+   255→      <p>This website is operated by Systematic Yield Analysts Pvt. Ltd., an Authorized Partner of Angel One Limited, for information and lead-generation purposes only.</p>
+   256→      <p>Nothing on this website constitutes investment advice, a research report, or an offer to buy or sell any security. Course content is educational in nature and does not guarantee trading outcomes.</p>
+   257→      <p>Investments in securities markets are subject to market risks. Please read all related documents carefully before investing. Past performance is not indicative of future returns.</p>
+   258→      <p>All pricing shown is as per Angel One's published rate card and may change; statutory charges apply as per exchange and SEBI norms.</p>
+   259→      <p>Disputes, if any, shall be subject to the jurisdiction of courts at Jaipur, Rajasthan.</p>
+   260→    `,
+   261→  },
+   262→};
+   263→
+   264→/* ═══════════════ Utilities ═══════════════ */
+   265→
+   266→function mulberry32(a: number) {
+   267→  return function () {
+   268→    a |= 0;
+   269→    a = (a + 0x6d2b79f5) | 0;
+   270→    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+   271→    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+   272→    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+   273→  };
+   274→}
+   275→
+   276→function inr(v: number, d = 2) {
+   277→  if (v == null || isNaN(v)) return '—';
+   278→  return v.toLocaleString('en-IN', {
+   279→    minimumFractionDigits: d,
+   280→    maximumFractionDigits: d,
+   281→  });
+   282→}
+   283→
+   284→function genSeries(s: SymbolData): SeriesData {
+   285→  const rnd = mulberry32(s.seed);
+   286→  const n = 44;
+   287→  const arr: Candle[] = [];
+   288→  let p = s.start;
+   289→  for (let i = 0; i < n; i++) {
+   290→    const o = p;
+   291→    const c = o * (1 + 0.0007 + (rnd() - 0.5) * s.vol * 2);
+   292→    const h = Math.max(o, c) * (1 + rnd() * s.vol * 0.9);
+   293→    const l = Math.min(o, c) * (1 - rnd() * s.vol * 0.9);
+   294→    arr.push({ o, h, l, c });
+   295→    p = c;
+   296→  }
+   297→  return {
+   298→    candles: arr,
+   299→    prevClose: s.start * 0.994,
+   300→    volM: 90 + rnd() * 80,
+   301→    tickCount: 0,
+   302→  };
+   303→}
+   304→
+   305→/* ═══════════════ Component ═══════════════ */
+   306→
+   307→function LazySection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+   308→  const [visible, setVisible] = useState(false);
+   309→  const ref = useRef<HTMLDivElement>(null);
+   310→  useEffect(() => {
+   311→    const el = ref.current;
+   312→    if (!el) return;
+   313→    const observer = new IntersectionObserver(
+   314→      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.unobserve(el); } },
+   315→      { rootMargin: '200px' }
+   316→    );
+   317→    observer.observe(el);
+   318→    return () => observer.disconnect();
+   319→  }, []);
+   320→  return (
+   321→    <div ref={ref} className={className}>
+   322→      {visible ? children : <div className="sec"><div className="wrap"><div style={{ height: '300px' }} className="animate-pulse bg-white/[0.01] rounded-xl" /></div></div>}
+   323→    </div>
+   324→  );
+   325→}
+   326→
+   327→export default function HomePage() {
+   328→  /* ── State ── */
+   329→  const [mobileOpen, setMobileOpen] = useState(false);
+   330→  const [headerScrolled, setHeaderScrolled] = useState(false);
+   331→  const [activeSection, setActiveSection] = useState('home');
+   332→  const [activeSym, setActiveSym] = useState(0);
+   333→  const [seriesMap, setSeriesMap] = useState<Map<string, SeriesData>>(
+   334→    () => {
+   335→      const m = new Map<string, SeriesData>();
+   336→      SYMBOLS.forEach((s) => m.set(s.sym, genSeries(s)));
+   337→      return m;
+   338→    }
+   339→  );
+   340→  const [flashClass, setFlashClass] = useState('');
+   341→  const [tickers, setTickers] = useState<TickerItem[]>(
+   342→    () => INITIAL_TICKERS.map((t) => ({ ...t }))
+   343→  );
+   344→  const [tickerFlashIdx, setTickerFlashIdx] = useState<Set<number>>(new Set());
+   345→  const [formSubmitted, setFormSubmitted] = useState(false);
+   346→  const [submitterName, setSubmitterName] = useState('');
+   347→  const [submitting, setSubmitting] = useState(false);
+   348→  const [submittedInterest, setSubmittedInterest] = useState('');
+   349→  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+   350→  const [modalOpen, setModalOpen] = useState(false);
+   351→  const [modalKey, setModalKey] = useState('privacy');
+   352→  const [toasts, setToasts] = useState<{ id: number; msg: string; ok: boolean }[]>([]);
+   353→  const [selectFlash, setSelectFlash] = useState(false);
+   354→  const [openFaq, setOpenFaq] = useState<number | null>(null);
+   355→  const [scrollProgress, setScrollProgress] = useState(0);
+   356→  const [showBackToTop, setShowBackToTop] = useState(false);
+   357→  const [showMobileCta, setShowMobileCta] = useState(false);
+   358→
+   359→  /* ── Refs ── */
+   360→  const chartRef = useRef<SVGSVGElement>(null);
+   361→  const gGridRef = useRef<SVGGElement>(null);
+   362→  const gCandlesRef = useRef<SVGGElement>(null);
+   363→  const gOverlayRef = useRef<SVGGElement>(null);
+   364→  const gXhairRef = useRef<SVGGElement>(null);
+   365→  const xVRef = useRef<SVGLineElement>(null);
+   366→  const xHRef = useRef<SVGLineElement>(null);
+   367→  const xPRRef = useRef<SVGRectElement>(null);
+   368→  const xPTRef = useRef<SVGTextElement>(null);
+   369→  const xTRRef = useRef<SVGRectElement>(null);
+   370→  const xTTRef = useRef<SVGTextElement>(null);
+   371→  const tPriceRef = useRef<HTMLSpanElement>(null);
+   372→  const formRef = useRef<HTMLFormElement>(null);
+   373→  const fNameRef = useRef<HTMLInputElement>(null);
+   374→  const fPhoneRef = useRef<HTMLInputElement>(null);
+   375→  const fEmailRef = useRef<HTMLInputElement>(null);
+   376→  const fInterestRef = useRef<HTMLSelectElement>(null);
+   377→
+   378→  const mobileMenuRef = useRef<HTMLDivElement>(null);
+   379→  const reducedMotion = useRef(
+   380→    typeof window !== 'undefined'
+   381→      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+   382→      : false
+   383→  );
+   384→  const toastId = useRef(0);
+   385→  const spIndex = useRef(Math.floor(Math.random() * SOCIAL_PROOFS.length));
+   386→  const [socialProof, setSocialProof] = useState<{ name: string; loc: string; action: string; mins: number } | null>(null);
+   387→  const [exitOpen, setExitOpen] = useState(false);
+   388→  const exitShown = useRef(false);
+   389→  const [cookieConsent, setCookieConsent] = useState<'accepted' | 'declined' | null>(null);
+   390→  const [openCurriculum, setOpenCurriculum] = useState<string | null>(null);
+   391→  const utmRef = useRef<UtmData>({ utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: '' });
+   392→  const [blogPosts, setBlogPosts] = useState<Array<{id: string; slug: string; title: string; excerpt: string | null; coverImage: string | null; category: string; author: string; createdAt: string; updatedAt: string}>>([]);
+   393→
+   394→  /* ── Fetch blog posts ── */
+   395→  useEffect(() => {
+   396→    fetch('/api/blogs?limit=3')
+   397→      .then((res) => res.json())
+   398→      .then((data) => { if (Array.isArray(data)) setBlogPosts(data); })
+   399→      .catch(() => { /* silently fail */ });
+   400→  }, []);
+   401→
+   402→  const cur = SYMBOLS[activeSym];
+   403→  const st = seriesMap.get(cur.sym)!;
+   404→  const lastCandle = st.candles[st.candles.length - 1];
+   405→
+   406→  /* ── Chart helpers ── */
+   407→  const VW = 560;
+   408→  const VH = 250;
+   409→  const padL = 6;
+   410→  const padR = 58;
+   411→  const padT = 12;
+   412→  const padB = 24;
+   413→
+   414→  const getChartGeom = useCallback(() => {
+   415→    const cs = st.candles;
+   416→    const n = cs.length;
+   417→    const step = (VW - padL - padR) / n;
+   418→    let mn = Infinity;
+   419→    let mx = -Infinity;
+   420→    cs.forEach((k) => {
+   421→      mn = Math.min(mn, k.l);
+   422→      mx = Math.max(mx, k.h);
+   423→    });
+   424→    const pad = (mx - mn) * 0.08;
+   425→    const min = mn - pad;
+   426→    const max = mx + pad;
+   427→    return { step, min, max, n };
+   428→  }, [st]);
+   429→
+   430→  const yOf = useCallback(
+   431→    (v: number) => {
+   432→      const { min, max } = getChartGeom();
+   433→      return padT + ((max - v) / (max - min)) * (VH - padT - padB);
+   434→    },
+   435→    [getChartGeom]
+   436→  );
+   437→
+   438→  const vOf = useCallback(
+   439→    (y: number) => {
+   440→      const { min, max } = getChartGeom();
+   441→      return max - ((y - padT) / (VH - padT - padB)) * (max - min);
+   442→    },
+   443→    [getChartGeom]
+   444→  );
+   445→
+   446→  const xOf = useCallback(
+   447→    (i: number) => {
+   448→      const { step } = getChartGeom();
+   449→      return padL + step * i + step / 2;
+   450→    },
+   451→    [getChartGeom]
+   452→  );
+   453→
+   454→  const fmtP = (v: number) => inr(v, cur.dec);
+   455→  const fmtAxis = (v: number) =>
+   456→    v >= 500
+   457→      ? v.toLocaleString('en-IN', { maximumFractionDigits: 0 })
+   458→      : v.toFixed(1);
+   459→  const timeOf = (i: number) => {
+   460→    const m = 9 * 60 + 15 + i * 5;
+   461→    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+   462→  };
+   463→
+   464→  /* ── Render chart ── */
+   465→  useEffect(() => {
+   466→    const { step, min, max, n } = getChartGeom();
+   467→    const cs = st.candles;
+   468→
+   469→    // Grid + axis labels
+   470→    let grid = '';
+   471→    for (let g = 0; g <= 4; g++) {
+   472→      const y = padT + ((VH - padT - padB) * g) / 4;
+   473→      const val = max - ((max - min) * g) / 4;
+   474→      grid += `<line x1="${padL}" x2="${VW - padR + 8}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,0.05)"/>`;
+   475→      grid += `<text x="${VW - padR + 12}" y="${y + 3}" font-size="9.5" fill="#5F6981">${fmtAxis(val)}</text>`;
+   476→    }
+   477→    for (let i = 4; i < n; i += 8)
+   478→      grid += `<text x="${xOf(i)}" y="${VH - 7}" font-size="9" fill="#5F6981" text-anchor="middle">${timeOf(i)}</text>`;
+   479→    if (gGridRef.current) gGridRef.current.innerHTML = grid;
+   480→
+   481→    // Candles
+   482→    const bw = Math.max(2, step * 0.55);
+   483→    let s = '';
+   484→    cs.forEach((k, i) => {
+   485→      const up = k.c >= k.o;
+   486→      const col = up ? '#35D49A' : '#F0555F';
+   487→      const x = xOf(i);
+   488→      const yH = yOf(k.h);
+   489→      const yL = yOf(k.l);
+   490→      const yO = yOf(k.o);
+   491→      const yC = yOf(k.c);
+   492→      s += `<line x1="${x}" x2="${x}" y1="${yH}" y2="${yL}" stroke="${col}" stroke-width="1" opacity="0.85"/>`;
+   493→      s += `<rect x="${(x - bw / 2).toFixed(2)}" y="${Math.min(yO, yC).toFixed(2)}" width="${bw.toFixed(2)}" height="${Math.max(1, Math.abs(yO - yC)).toFixed(2)}" fill="${col}" opacity="${i === n - 1 ? 1 : 0.9}"/>`;
+   494→    });
+   495→    if (gCandlesRef.current) gCandlesRef.current.innerHTML = s;
+   496→
+   497→    // Last-price line
+   498→    const ylp = yOf(cs[n - 1].c);
+   499→    if (gOverlayRef.current) {
+   500→      gOverlayRef.current.innerHTML =
+   501→        `<line x1="${padL}" x2="${VW - padR}" y1="${ylp}" y2="${ylp}" stroke="#E2B15C" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>` +
+   502→        `<rect x="${VW - padR + 2}" y="${ylp - 8}" width="52" height="16" rx="3" fill="#E2B15C"/>` +
+   503→        `<text x="${VW - padR + 28}" y="${ylp + 3.5}" font-size="9.5" font-weight="600" fill="#0A0F1C" text-anchor="middle">${fmtP(cs[n - 1].c)}</text>`;
+   504→    }
+   505→  }, [st, getChartGeom, xOf, yOf, fmtP]);
+   506→
+   507→  /* ── Live tick ── */
+   508→  useEffect(() => {
+   509→    if (reducedMotion.current) return;
+   510→    const iv = setInterval(() => {
+   511→      if (document.hidden) return;
+   512→      setSeriesMap((prev) => {
+   513→        const next = new Map(prev);
+   514→        const sd = next.get(cur.sym);
+   515→        if (!sd) return prev;
+   516→        const newSd = { ...sd, candles: sd.candles.map((k) => ({ ...k })) };
+   517→        const last = newSd.candles[newSd.candles.length - 1];
+   518→        const old = last.c;
+   519→        last.c = last.c * (1 + (Math.random() - 0.5) * cur.vol * 1.8);
+   520→        last.h = Math.max(last.h, last.c);
+   521→        last.l = Math.min(last.l, last.c);
+   522→        newSd.tickCount++;
+   523→        if (newSd.tickCount % 14 === 0) {
+   524→          newSd.candles.push({ o: last.c, h: last.c, l: last.c, c: last.c });
+   525→          newSd.candles.shift();
+   526→        }
+   527→        next.set(cur.sym, newSd);
+   528→        return next;
+   529→      });
+   530→      // Flash
+   531→      setFlashClass((prev) => {
+   532→        const dir = Math.random() > 0.5 ? 'flash-up' : 'flash-down';
+   533→        return dir;
+   534→      });
+   535→      setTimeout(() => setFlashClass(''), 550);
+   536→    }, 900);
+   537→    return () => clearInterval(iv);
+   538→  }, [cur]);
+   539→
+   540→  /* ── Social proof notifications ── */
+   541→  useEffect(() => {
+   542→    if (reducedMotion.current) return;
+   543→    // Show first one after 8s, then every 25-40s
+   544→    const delay = 8000;
+   545→    const show = () => {
+   546→      const item = SOCIAL_PROOFS[spIndex.current % SOCIAL_PROOFS.length];
+   547→      spIndex.current++;
+   548→      setSocialProof(item);
+   549→      setTimeout(() => setSocialProof(null), 5000);
+   550→    };
+   551→    const t1 = setTimeout(show, delay);
+   552→    const iv = setInterval(show, 25000 + Math.random() * 15000);
+   553→    return () => { clearTimeout(t1); clearInterval(iv); };
+   554→  }, []);
+   555→
+   556→  /* ── Exit-intent detection (desktop only) ── */
+   557→  useEffect(() => {
+   558→    if (typeof window === 'undefined') return;
+   559→    const handler = (e: MouseEvent) => {
+   560→      if (e.clientY <= 0 && !exitShown.current && !modalOpen) {
+   561→        exitShown.current = true;
+   562→        setExitOpen(true);
+   563→      }
+   564→    };
+   565→    document.addEventListener('mouseleave', handler);
+   566→    return () => document.removeEventListener('mouseleave', handler);
+   567→  }, [modalOpen]);
+   568→
+   569→  /* ── Header scroll + progress + back-to-top + mobile CTA ── */
+   570→  useEffect(() => {
+   571→    const handler = () => {
+   572→      const y = window.scrollY;
+   573→      setHeaderScrolled(y > 8);
+   574→      setShowBackToTop(y > 600);
+   575→      setShowMobileCta(y > 500);
+   576→      const docH = document.documentElement.scrollHeight - window.innerHeight;
+   577→      setScrollProgress(docH > 0 ? Math.min(1, y / docH) : 0);
+   578→    };
+   579→    window.addEventListener('scroll', handler, { passive: true });
+   580→    handler();
+   581→    return () => window.removeEventListener('scroll', handler);
+   582→  }, []);
+   583→
+   584→  /* ── Scroll spy ── */
+   585→  useEffect(() => {
+   586→    const ids = ['home', 'demat', 'courses', 'howitworks', 'testimonials', 'faq', 'about', 'blog', 'contact'];
+   587→    const observer = new IntersectionObserver(
+   588→      (entries) => {
+   589→        entries.forEach((e) => {
+   590→          if (e.isIntersecting) {
+   591→            setActiveSection(e.target.id);
+   592→          }
+   593→        });
+   594→      },
+   595→      { rootMargin: '-40% 0px -55% 0px' }
+   596→    );
+   597→    ids.forEach((id) => {
+   598→      const el = document.getElementById(id);
+   599→      if (el) observer.observe(el);
+   600→    });
+   601→    return () => observer.disconnect();
+   602→  }, []);
+   603→
+   604→  /* ── Reveal on scroll ── */
+   605→  useEffect(() => {
+   606→    if (reducedMotion.current) {
+   607→      document.querySelectorAll('.reveal').forEach((el) => el.classList.add('in'));
+   608→      return;
+   609→    }
+   610→    const observer = new IntersectionObserver(
+   611→      (entries) => {
+   612→        entries.forEach((e) => {
+   613→          if (e.isIntersecting) {
+   614→            e.target.classList.add('in');
+   615→            observer.unobserve(e.target);
+   616→          }
+   617→        });
+   618→      },
+   619→      { threshold: 0.12 }
+   620→    );
+   621→    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
+   622→    return () => observer.disconnect();
+   623→  }, []);
+   624→
+   625→  /* ── Counter animation ── */
+   626→  useEffect(() => {
+   627→    const observer = new IntersectionObserver(
+   628→      (entries) => {
+   629→        entries.forEach((e) => {
+   630→          if (!e.isIntersecting) return;
+   631→          const el = e.target as HTMLElement;
+   632→          const count = parseInt(el.dataset.count || '0', 10);
+   633→          observer.unobserve(el);
+   634→          if (reducedMotion.current) {
+   635→            el.textContent = count.toLocaleString('en-IN');
+   636→            return;
+   637→          }
+   638→          const t0 = performance.now();
+   639→          const dur = 1400;
+   640→          const step = (t: number) => {
+   641→            const p = Math.min(1, (t - t0) / dur);
+   642→            const eased = 1 - Math.pow(1 - p, 3);
+   643→            el.textContent = Math.round(count * eased).toLocaleString('en-IN');
+   644→            if (p < 1) requestAnimationFrame(step);
+   645→          };
+   646→          requestAnimationFrame(step);
+   647→        });
+   648→      },
+   649→      { threshold: 0.5 }
+   650→    );
+   651→    document.querySelectorAll('[data-count]').forEach((el) => observer.observe(el));
+   652→    return () => observer.disconnect();
+   653→  }, []);
+   654→
+   655→  /* ── UTM capture on mount ── */
+   656→  useEffect(() => {
+   657→    utmRef.current = captureUtm();
+   658→  }, []);
+   659→
+   660→  /* ── Cookie consent check ── */
+   661→  useEffect(() => {
+   662→    try {
+   663→      const stored = localStorage.getItem('sya_cookie_consent');
+   664→      if (stored === 'accepted' || stored === 'declined') setCookieConsent(stored);
+   665→    } catch { /* ignore */ }
+   666→  }, []);
+   667→
+   668→  const handleCookieConsent = useCallback((choice: 'accepted' | 'declined') => {
+   669→    setCookieConsent(choice);
+   670→    try { localStorage.setItem('sya_cookie_consent', choice); } catch { /* ignore */ }
+   671→  }, []);
+   672→
+   673→  /* ── Restore abandoned form data ── */
+   674→  useEffect(() => {
+   675→    const saved = loadAbandonment();
+   676→    if (!saved) return;
+   677→    if (fNameRef.current && saved.name) fNameRef.current.value = saved.name;
+   678→    if (fPhoneRef.current && saved.phone) fPhoneRef.current.value = saved.phone;
+   679→    if (fEmailRef.current && saved.email) fEmailRef.current.value = saved.email;
+   680→    if (fInterestRef.current && saved.interest) fInterestRef.current.value = saved.interest;
+   681→    if (saved.message) {
+   682→      const msgEl = document.getElementById('fMsg') as HTMLTextAreaElement | null;
+   683→      if (msgEl) msgEl.value = saved.message;
+   684→    }
+   685→    // Show a subtle toast about restored data
+   686→    addToast('We restored your previous form entries.', true);
+   687→  }, []);
+   688→
+   689→  /* ── Save form data on input (abandonment tracking) ── */
+   690→  const trackFormInput = useCallback(() => {
+   691→    const data: Record<string, string> = {};
+   692→    if (fNameRef.current?.value) data.name = fNameRef.current.value;
+   693→    if (fPhoneRef.current?.value) data.phone = fPhoneRef.current.value;
+   694→    if (fEmailRef.current?.value) data.email = fEmailRef.current.value;
+   695→    if (fInterestRef.current?.value) data.interest = fInterestRef.current.value;
+   696→    const msgEl = document.getElementById('fMsg') as HTMLTextAreaElement | null;
+   697→    if (msgEl?.value) data.message = msgEl.value;
+   698→    if (Object.keys(data).length > 0) saveAbandonment(data);
+   699→  }, []);
+   700→
+   701→  /* ── Save on page unload ── */
+   702→  useEffect(() => {
+   703→    const handler = () => trackFormInput();
+   704→    window.addEventListener('beforeunload', handler);
+   705→    return () => window.removeEventListener('beforeunload', handler);
+   706→  }, [trackFormInput]);
+   707→
+   708→  /* ── Ticker price flicker ── */
+   709→  useEffect(() => {
+   710→    if (reducedMotion.current) return;
+   711→    const iv = setInterval(() => {
+   712→      setTickers((prev) => {
+   713→        const next = [...prev];
+   714→        const flashSet = new Set<number>();
+   715→        for (let k = 0; k < 3; k++) {
+   716→          const i = Math.floor(Math.random() * next.length);
+   717→          const t = { ...next[i] };
+   718→          const old = t.price;
+   719→          t.price = t.price * (1 + (Math.random() - 0.5) * 0.0035);
+   720→          t.change += ((t.price - old) / old) * 100;
+   721→          next[i] = t;
+   722→          flashSet.add(i);
+   723→        }
+   724→        setTickerFlashIdx(flashSet);
+   725→        return next;
+   726→      });
+   727→      setTimeout(() => setTickerFlashIdx(new Set()), 420);
+   728→    }, 2200);
+   729→    return () => clearInterval(iv);
+   730→  }, []);
+   731→
+   732→  /* ── Escape key for modal ── */
+   733→  useEffect(() => {
+   734→    const handler = (e: KeyboardEvent) => {
+   735→      if (e.key === 'Escape' && modalOpen) setModalOpen(false);
+   736→    };
+   737→    document.addEventListener('keydown', handler);
+   738→    return () => document.removeEventListener('keydown', handler);
+   739→  }, [modalOpen]);
+   740→
+   741→  /* ── Modal focus trap ── */
+   742→  useEffect(() => {
+   743→    if (!modalOpen) return;
+   744→    const modal = document.getElementById('modal');
+   745→    if (!modal) return;
+   746→    const focusable = modal.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+   747→    const first = focusable[0];
+   748→    const last = focusable[focusable.length - 1];
+   749→    if (first) first.focus();
+   750→    const trap = (e: KeyboardEvent) => {
+   751→      if (e.key !== 'Tab') return;
+   752→      if (e.shiftKey) {
+   753→        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+   754→      } else {
+   755→        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+   756→      }
+   757→    };
+   758→    document.addEventListener('keydown', trap);
+   759→    return () => document.removeEventListener('keydown', trap);
+   760→  }, [modalOpen]);
+   761→
+   762→  /* ── Toast helper ── */
+   763→  const addToast = useCallback((msg: string, ok = true) => {
+   764→    const id = ++toastId.current;
+   765→    setToasts((prev) => [...prev, { id, msg, ok }]);
+   766→    setTimeout(() => {
+   767→      setToasts((prev) => prev.filter((t) => t.id !== id));
+   768→    }, 4200);
+   769→  }, []);
+   770→
+   771→  /* ── CTA handler ── */
+   772→  const handleInterest = useCallback(
+   773→    (kind: string, label: string) => {
+   774→      if (fInterestRef.current) {
+   775→        fInterestRef.current.value = kind;
+   776→        setSelectFlash(true);
+   777→        setTimeout(() => setSelectFlash(false), 2200);
+   778→      }
+   779→      setMobileOpen(false);
+   780→      document
+   781→        .getElementById('contact')
+   782→        ?.scrollIntoView({ behavior: reducedMotion.current ? 'auto' : 'smooth' });
+   783→      setTimeout(() => fNameRef.current?.focus({ preventScroll: true }), 700);
+   784→      if (label)
+   785→        addToast(
+   786→          `Noted — "${label}". Share your details and we'll take it from here.`
+   787→        );
+   788→    },
+   789→    [addToast]
+   790→  );
+   791→
+   792→  /* ── Form validation ── */
+   793→  const setErr = (field: string, msg: string | null) => {
+   794→    setFormErrors((prev) => {
+   795→      const next = { ...prev };
+   796→      if (msg) next[field] = msg;
+   797→      else delete next[field];
+   798→      return next;
+   799→    });
+   800→    // Also toggle .err on input
+   801→    const elMap: Record<string, HTMLInputElement | HTMLSelectElement | null> = {
+   802→      name: fNameRef.current,
+   803→      phone: fPhoneRef.current,
+   804→      email: fEmailRef.current,
+   805→      interest: fInterestRef.current,
+   806→    };
+   807→    const el = elMap[field];
+   808→    if (el) {
+   809→      if (msg) el.classList.add('err');
+   810→      else el.classList.remove('err');
+   811→    }
+   812→  };
+   813→
+   814→  const handleSubmit = async (e: React.FormEvent) => {
+   815→    e.preventDefault();
+   816→    const name = fNameRef.current?.value || '';
+   817→    const phone = fPhoneRef.current?.value || '';
+   818→    const email = fEmailRef.current?.value || '';
+   819→    const interest = fInterestRef.current?.value || '';
+   820→
+   821→    let ok = true;
+   822→    if (name.trim().length < 3) {
+   823→      setErr('name', 'Please enter your full name.');
+   824→      ok = false;
+   825→    } else setErr('name', null);
+   826→
+   827→    const digits = phone.replace(/\D/g, '');
+   828→    if (digits.length < 10 || !/^[6-9]\d{9}$/.test(digits.slice(-10))) {
+   829→      setErr('phone', 'Enter a valid 10-digit Indian mobile number.');
+   830→      ok = false;
+   831→    } else setErr('phone', null);
+   832→
+   833→    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
+   834→      setErr('email', 'Enter a valid email address.');
+   835→      ok = false;
+   836→    } else setErr('email', null);
+   837→
+   838→    if (!interest) {
+   839→      setErr('interest', 'Please choose an option.');
+   840→      ok = false;
+   841→    } else setErr('interest', null);
+   842→
+   843→    if (!ok) {
+   844→      addToast('Please fix the highlighted fields.', false);
+   845→      return;
+   846→    }
+   847→
+   848→    // Hybrid form system: save to database + conditional eKYC redirect
+   849→    setSubmitting(true);
+   850→
+   851→    try {
+   852→      const utm = getStoredUtm();
+   853→      const res = await fetch('/api/leads', {
+   854→        method: 'POST',
+   855→        headers: { 'Content-Type': 'application/json' },
+   856→        body: JSON.stringify({
+   857→          name: name.trim(),
+   858→          phone,
+   859→          email: email.trim(),
+   860→          interest,
+   861→          message: document.getElementById('fMsg')?.value || '',
+   862→          ...utm,
+   863→        }),
+   864→      });
+   865→      const data = await res.json();
+   866→
+   867→      if (!res.ok) {
+   868→        if (data.fields) {
+   869→          Object.entries(data.fields).forEach(([field, msg]) => setErr(field, msg as string));
+   870→          addToast('Please fix the highlighted fields.', false);
+   871→        } else {
+   872→          addToast(data.error || 'Something went wrong. Please try again.', false);
+   873→        }
+   874→        setSubmitting(false);
+   875→        return;
+   876→      }
+   877→
+   878→      setSubmitterName(data.firstName);
+   879→      setSubmittedInterest(data.interest);
+   880→      setFormSubmitted(true);
+   881→      clearAbandonment();
+   882→      addToast('Inquiry received — we usually respond within a few hours.');
+   883→
+   884→      // Redirect to Angel One eKYC for account/both interests
+   885→      if (data.ekycUrl) {
+   886→        setTimeout(() => {
+   887→          window.open(data.ekycUrl, '_blank', 'noopener,noreferrer');
+   888→        }, 1200);
+   889→      }
+   890→    } catch {
+   891→      addToast('Network error — please check your connection and try again.', false);
+   892→    } finally {
+   893→      setSubmitting(false);
+   894→    }
+   895→  };
+   896→
+   897→  const resetForm = () => {
+   898→    formRef.current?.reset();
+   899→    setFormSubmitted(false);
+   900→    setSubmittedInterest('');
+   901→    setFormErrors({});
+   902→  };
+   903→
+   904→  /* ── Header data ── */
+   905→  const chg = lastCandle.c - st.prevClose;
+   906→  const pct = (chg / st.prevClose) * 100;
+   907→  const up = chg >= 0;
+   908→  const sma =
+   909→    st.candles.slice(-20).reduce((a, k) => a + k.c, 0) / 20;
+   910→  const above = lastCandle.c >= sma;
+   911→
+   912→  /* ── Ticker HTML ── */
+   913→  const tkHTML = tickers.map((t, i) => (
+   914→    <span
+   915→      key={i}
+   916→      className="tk flex items-center gap-2 text-[12px] whitespace-nowrap"
+   917→      data-tk={i}
+   918→    >
+   919→      <span className="text-white/60 font-medium">{t.name}</span>
+   920→      <span
+   921→        className={`tk-px tnum text-white/90 ${tickerFlashIdx.has(i) ? 'tk-flash' : ''}`}
+   922→      >
+   923→        {inr(t.price)}
+   924→      </span>
+   925→      <span
+   926→        className={`tnum text-[11px] ${t.change >= 0 ? 'text-up' : 'text-down'}`}
+   927→      >
+   928→        {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change).toFixed(2)}%
+   929→      </span>
+   930→    </span>
+   931→  ));
+   932→
+   933→  const navLinks = ['home', 'demat', 'courses', 'howitworks', 'testimonials', 'faq', 'about', 'blog', 'contact'];
+   934→  const navLabels: Record<string, string> = {
+   935→    home: 'Home',
+   936→    demat: 'Open Demat',
+   937→    courses: 'Courses',
+   938→    howitworks: 'How It Works',
+   939→    testimonials: 'Reviews',
+   940→    faq: 'FAQ',
+   941→    about: 'About',
+   942→    blog: 'Insights',
+   943→    contact: 'Contact',
+   944→  };
+   945→
+   946→  const year = new Date().getFullYear();
+   947→
+   948→  return (
+   949→    <div className="min-h-screen flex flex-col font-sans">
+   950→      {/* ══════════ ACCESSIBILITY ══════════ */}
+   951→      <a href="#main-content" className="skip-link">Skip to main content</a>
+   952→      <div className="scroll-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} role="progressbar" aria-valuenow={Math.round(scrollProgress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Page scroll progress" />
+   953→
+   954→      {/* ══════════ LIVE INDEX TICKER ══════════ */}
+   955→      <div className="border-b border-white/[0.06] bg-ink2">
+   956→        <div className="ticker-wrap overflow-hidden">
+   957→          <div className="ticker-track flex w-max items-center py-2">
+   958→            {tkHTML}
+   959→            {tkHTML}
+   960→          </div>
+   961→        </div>
+   962→      </div>
+   963→
+   964→      {/* ══════════ STICKY NAV ══════════ */}
+   965→      <header
+   966→        id="siteHeader"
+   967→        className={`sticky top-0 z-50 border-b border-white/[0.06] bg-ink/80 backdrop-blur-md transition-all ${headerScrolled ? 'scrolled' : ''}`}
+   968→      >
+   969→        <nav
+   970→          className="wrap h-[70px] flex items-center justify-between gap-6"
+   971→          aria-label="Main navigation"
+   972→        >
+   973→          <a href="#home" className="flex items-center gap-3 shrink-0">
+   974→            <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+   975→              <rect
+   976→                x="1.25" y="1.25" width="29.5" height="29.5" rx="7"
+   977→                fill="none" stroke="#E2B15C" strokeWidth="1.4" opacity=".8"
+   978→              />
+   979→              <path
+   980→                d="M8 22 L13 16 L17 19 L24 10" stroke="#fff"
+   981→                strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round"
+   982→              />
+   983→              <circle cx="24" cy="10" r="2.3" fill="#E2B15C" />
+   984→            </svg>
+   985→            <span className="leading-tight">
+   986→              <span className="block text-[15px] font-semibold tracking-tight">
+   987→                Systematic Yield
+   988→              </span>
+   989→              <span className="block text-[9px] font-medium tracking-[0.24em] text-mist uppercase">
+   990→                Analysts · Angel One Partner
+   991→              </span>
+   992→            </span>
+   993→          </a>
+   994→
+   995→          <div className="hidden lg:flex items-center gap-8 text-[13.5px] font-medium">
+   996→            {navLinks.map((id) => (
+   997→              <a
+   998→                key={id}
+   999→                href={`#${id}`}
+  1000→                className={`nav-link dl ${activeSection === id ? 'active' : ''}`}
+  1001→              >
+  1002→                {navLabels[id]}
+  1003→              </a>
+  1004→            ))}
+  1005→          </div>
+  1006→
+  1007→          <div className="flex items-center gap-3">
+  1008→            <button
+  1009→              onClick={() => handleInterest('account', 'Demat account onboarding')}
+  1010→              className="btn btn-primary hidden sm:inline-flex !py-2.5 !px-5 !text-[13px]"
+  1011→            >
+  1012→              Open Demat Account
+  1013→            </button>
+  1014→            <button
+  1015→              onClick={() => setMobileOpen((o) => !o)}
+  1016→              className="lg:hidden w-10 h-10 flex items-center justify-center border border-white/15 rounded-md"
+  1017→              aria-label="Toggle menu"
+  1018→            >
+  1019→              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+  1020→            </button>
+  1021→          </div>
+  1022→        </nav>
+  1023→
+  1024→        {/* Mobile menu */}
+  1025→        <div
+  1026→          ref={mobileMenuRef}
+  1027→          id="mobileMenu"
+  1028→          className="lg:hidden border-t border-white/[0.06] bg-ink2/95 backdrop-blur-md"
+  1029→          style={{ maxHeight: mobileOpen ? mobileMenuRef.current?.scrollHeight + 'px' : '0px' }}
+  1030→        >
+  1031→          <div className="wrap py-2 flex flex-col">
+  1032→            {navLinks.map((id) => (
+  1033→              <a
+  1034→                key={id}
+  1035→                href={`#${id}`}
+  1036→                onClick={() => setMobileOpen(false)}
+  1037→                className="nav-link py-3.5 border-b border-white/5 text-[15px] font-medium"
+  1038→              >
+  1039→                {navLabels[id]}
+  1040→              </a>
+  1041→            ))}
+  1042→            <button
+  1043→              onClick={() => handleInterest('account', 'Demat account onboarding')}
+  1044→              className="btn btn-primary w-full my-4"
+  1045→            >
+  1046→              Open Demat Account
+  1047→            </button>
+  1048→          </div>
+  1049→        </div>
+  1050→      </header>
+  1051→
+  1052→      <main id="main-content">
+  1053→        {/* ══════════ HERO ══════════ */}
+  1054→        <section id="home" className="relative overflow-hidden">
+  1055→          <div className="grid-paper absolute inset-0 pointer-events-none" aria-hidden="true" />
+  1056→
+  1057→          <div className="wrap relative pt-14 pb-16 lg:pt-24 lg:pb-24 grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
+  1058→            {/* Copy */}
+  1059→            <div className="lg:col-span-6">
+  1060→              <p className="eyebrow reveal">Angel One Authorized Partner · Jaipur</p>
+  1061→              <h1 className="reveal d1 font-serif font-medium text-[38px] leading-[1.08] sm:text-[46px] lg:text-[54px] tracking-[-0.01em] mt-6">
+  1062→                Master the <em>Markets</em>.<br />Trade with the Best.
+  1063→              </h1>
+  1064→              <p className="reveal d2 mt-6 text-mist text-[15.5px] md:text-base leading-relaxed max-w-xl">
+  1065→                Your trusted Angel One Authorized Partner and premier stock market education academy.
+  1066→                Build your wealth with data-driven strategies — not guesswork.
+  1067→              </p>
+  1068→              <div className="reveal d3 mt-9 flex flex-wrap gap-3">
+  1069→                <button
+  1070→                  onClick={() => handleInterest('account', '')}
+  1071→                  className="btn btn-primary"
+  1072→                >
+  1073→                  Open Angel One Account <ArrowRight className="w-4 h-4" />
+  1074→                </button>
+  1075→                <a href="#courses" className="btn btn-ghost">
+  1076→                  View Our Courses
+  1077→                </a>
+  1078→              </div>
+  1079→              <p className="reveal d3 mt-8 flex items-center gap-2.5 text-[12.5px] text-mist">
+  1080→                <ShieldCheck className="w-[15px] h-[15px] text-gold shrink-0" />
+  1081→                Backed by Angel One — Member NSE · BSE · MCX. Paperless onboarding in about 15 minutes.
+  1082→              </p>
+  1083→            </div>
+  1084→
+  1085→            {/* Live terminal */}
+  1086→            <div className="lg:col-span-6 reveal d2">
+  1087→              <div className="relative">
+  1088→                <span className="tick tick-tl" aria-hidden="true" />
+  1089→                <span className="tick tick-tr" aria-hidden="true" />
+  1090→                <span className="tick tick-bl" aria-hidden="true" />
+  1091→                <span className="tick tick-br" aria-hidden="true" />
+  1092→
+  1093→                <div className="rounded-xl border border-white/10 bg-panel shadow-2xl shadow-black/60 overflow-hidden">
+  1094→                  {/* Terminal header / symbol tabs */}
+  1095→                  <div className="flex items-center justify-between border-b border-white/[0.07] pl-2 pr-4">
+  1096→                    <div className="flex">
+  1097→                      {SYMBOLS.map((s, i) => (
+  1098→                        <button
+  1099→                          key={s.sym}
+  1100→                          className={`term-tab ${activeSym === i ? 'active' : ''}`}
+  1101→                          onClick={() => setActiveSym(i)}
+  1102→                        >
+  1103→                          {s.sym}
+  1104→                        </button>
+  1105→                      ))}
+  1106→                    </div>
+  1107→                    <div className="flex items-center gap-2">
+  1108→                      <span className="live-dot" />
+  1109→                      <span className="text-[10.5px] font-semibold tracking-[0.2em] text-up">LIVE</span>
+  1110→                    </div>
+  1111→                  </div>
+  1112→
+  1113→                  {/* Quote header */}
+  1114→                  <div className="px-5 pt-4 flex items-end justify-between gap-4">
+  1115→                    <div>
+  1116→                      <div className="text-[11px] tracking-[0.18em] text-mist uppercase font-medium">
+  1117→                        {cur.sym}
+  1118→                      </div>
+  1119→                      <div className="flex items-baseline gap-3 mt-1.5">
+  1120→                        <span
+  1121→                          ref={tPriceRef}
+  1122→                          id="tPrice"
+  1123→                          className={`tnum text-[30px] font-semibold leading-none ${flashClass}`}
+  1124→                        >
+  1125→                          {fmtP(lastCandle.c)}
+  1126→                        </span>
+  1127→                        <span
+  1128→                          className={`tnum text-[13px] px-1.5 py-0.5 rounded ${up ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}
+  1129→                        >
+  1130→                          {up ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
+  1131→                        </span>
+  1132→                      </div>
+  1133→                    </div>
+  1134→                    <div className="hidden sm:flex gap-5 text-right">
+  1135→                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">OPEN</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.o)}</div></div>
+  1136→                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">HIGH</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.h)}</div></div>
+  1137→                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">LOW</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.l)}</div></div>
+  1138→                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">CLOSE</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.c)}</div></div>
+  1139→                    </div>
+  1140→                  </div>
+  1141→
+  1142→                  {/* Candlestick chart */}
+  1143→                  <div className="mt-2 px-1">
+  1144→                    <ChartSVG
+  1145→                      chartRef={chartRef}
+  1146→                      gGridRef={gGridRef}
+  1147→                      gCandlesRef={gCandlesRef}
+  1148→                      gOverlayRef={gOverlayRef}
+  1149→                      gXhairRef={gXhairRef}
+  1150→                      xVRef={xVRef}
+  1151→                      xHRef={xHRef}
+  1152→                      xPRRef={xPRRef}
+  1153→                      xPTRef={xPTRef}
+  1154→                      xTRRef={xTRRef}
+  1155→                      xTTRef={xTTRef}
+  1156→                      getChartGeom={getChartGeom}
+  1157→                      yOf={yOf}
+  1158→                      vOf={vOf}
+  1159→                      xOf={xOf}
+  1160→                      fmtP={fmtP}
+  1161→                      timeOf={timeOf}
+  1162→                    />
+  1163→                  </div>
+  1164→
+  1165→                  {/* Terminal footer */}
+  1166→                  <div className="flex items-center justify-between border-t border-white/[0.07] px-5 py-3 text-[11.5px] text-mist">
+  1167→                    <span className="tnum">VOL {(st.volM + Math.random() * 8).toFixed(1)}M</span>
+  1168→                    <span className="flex items-center gap-1.5">
+  1169→                      <span className={`w-1.5 h-1.5 rounded-full ${above ? 'bg-up' : 'bg-down'} inline-block`} />
+  1170→                      {above ? 'Above 20-SMA · Bullish bias' : 'Below 20-SMA · Cautious'}
+  1171→                    </span>
+  1172→                  </div>
+  1173→                </div>
+  1174→              </div>
+  1175→              <p className="mt-3.5 text-[11px] text-white/35">
+  1176→                Illustrative feed for demonstration — open your account with us for live market data.
+  1177→              </p>
+  1178→            </div>
+  1179→          </div>
+  1180→        </section>
+  1181→
+  1182→        {/* ══════════ TRUST & STATS STRIP ══════════ */}
+  1183→        <div className="border-y border-white/[0.08]">
+  1184→          <div className="wrap !px-0 md:!px-8">
+  1185→            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.08]">
+  1186→              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal">
+  1187→                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><BadgeCheck className="w-[18px] h-[18px]" /></span>
+  1188→                <span><span className="block text-[13.5px] font-semibold leading-snug">Authorized Angel One Partner</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">Regulated broking ecosystem, end to end</span></span>
+  1189→              </div>
+  1190→              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d1">
+  1191→                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><GraduationCap className="w-[18px] h-[18px]" /></span>
+  1192→                <span><span className="block text-[13.5px] font-semibold leading-snug">Expert Mentorship</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">NISM-certified mentors, live market sessions</span></span>
+  1193→              </div>
+  1194→              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d2">
+  1195→                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><Cpu className="w-[18px] h-[18px]" /></span>
+  1196→                <span><span className="block text-[13.5px] font-semibold leading-snug">Data-Driven Quant Strategies</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">Backtested models — never hot tips</span></span>
+  1197→              </div>
+  1198→              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d3">
+  1199→                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><Headphones className="w-[18px] h-[18px]" /></span>
+  1200→                <span><span className="block text-[13.5px] font-semibold leading-snug">Dedicated Support</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">One point of contact — KYC to strategy</span></span>
+  1201→              </div>
+  1202→            </div>
+  1203→          </div>
+  1204→        </div>
+  1205→
+  1206→        {/* ══════════ GOOGLE REVIEWS BADGE ══════════ */}
+  1207→        <div className="border-b border-white/[0.08]">
+  1208→          <div className="wrap py-6 flex flex-wrap items-center justify-center gap-6 reveal">
+  1209→            <div className="google-badge">
+  1210→              <svg className="google-badge-logo" viewBox="0 0 24 24" aria-hidden="true" loading="lazy"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+  1211→              <div>
+  1212→                <div className="flex items-center gap-1.5">
+  1213→                  <span className="google-badge-rating">4.8</span>
+  1214→                  <div className="google-badge-stars">
+  1215→                    {[0,1,2,3,4].map((si) => (
+  1216→                      <Star key={si} style={{ width: 14, height: 14, fill: '#E2B15C', color: '#E2B15C' }} />
+  1217→                    ))}
+  1218→                  </div>
+  1219→                </div>
+  1220→                <p className="google-badge-count">Based on 180+ Google Reviews</p>
+  1221→              </div>
+  1222→            </div>
+  1223→            <div className="flex flex-wrap items-center justify-center gap-5 text-[12.5px] text-mist">
+  1224→              <span className="flex items-center gap-1.5"><BadgeCheck className="w-4 h-4 text-up" /> SEBI Regulated</span>
+  1225→              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-up" /> NSE, BSE, MCX</span>
+  1226→              <span className="flex items-center gap-1.5"><GraduationCap className="w-4 h-4 text-up" /> NISM Certified</span>
+  1227→            </div>
+  1228→          </div>
+  1229→        </div>
+  1230→
+  1231→        {/* ══════════ BROKING SERVICES ══════════ */}
+  1232→        <section id="demat" className="sec bg-ink2/50">
+  1233→          <div className="wrap grid lg:grid-cols-2 gap-14 lg:gap-20 items-start">
+  1234→            {/* Left: benefits */}
+  1235→            <div>
+  1236→              <p className="eyebrow reveal">01 · Partner Desk</p>
+  1237→              <h2 className="reveal d1 font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1238→                Why Open Your Account With Us?
+  1239→              </h2>
+  1240→              <p className="reveal d2 mt-4 text-mist text-[15px] leading-relaxed max-w-lg">
+  1241→                Anyone can issue you a login. As an Authorized Partner of Angel One, we pair India&apos;s most trusted
+  1242→                broking platform with a local desk that actually picks up the phone.
+  1243→              </p>
+  1244→
+  1245→              <div className="reveal d2 mt-10 divide-y divide-white/[0.08] border-y border-white/[0.08]">
+  1246→                {[
+  1247→                  { icon: IndianRupee, title: 'Zero brokerage on equity delivery', desc: 'Buy and hold across NSE & BSE without brokerage eating into your returns. Delivery trades stay completely free.' },
+  1248→                  { icon: Receipt, title: 'Flat ₹20 on intraday & F&O', desc: 'One flat fee per executed order — or 0.03% of turnover, whichever is lower. No hidden slabs, no percentage surprises.' },
+  1249→                  { icon: UserCheck, title: 'Personalized portfolio guidance', desc: 'A dedicated partner who reviews your allocations with you every quarter — and tells you when the right move is to do nothing.' },
+  1250→                  { icon: Code2, title: 'API & algo trading support', desc: 'Build on Angel One SmartAPI with hand-holding from our quant team — from your first automated signal to full deployment.' },
+  1251→                  { icon: Zap, title: 'Seamless digital onboarding', desc: '100% paperless e-KYC with e-Sign and DigiLocker. Most accounts are trade-ready within 24 hours.' },
+  1252→                ].map((item) => (
+  1253→                  <div key={item.title} className="flex gap-5 py-6 group">
+  1254→                    <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors">
+  1255→                      <item.icon className="w-[19px] h-[19px]" />
+  1256→                    </span>
+  1257→                    <div>
+  1258→                      <h3 className="text-[15.5px] font-semibold">{item.title}</h3>
+  1259→                      <p className="text-[13.5px] text-mist mt-1.5 leading-relaxed">{item.desc}</p>
+  1260→                    </div>
+  1261→                  </div>
+  1262→                ))}
+  1263→              </div>
+  1264→            </div>
+  1265→
+  1266→            {/* Right: pricing term sheet */}
+  1267→            <div className="reveal d1 lg:sticky lg:top-24">
+  1268→              <div className="relative">
+  1269→                <span className="tick tick-tl" aria-hidden="true" />
+  1270→                <span className="tick tick-tr" aria-hidden="true" />
+  1271→                <span className="tick tick-bl" aria-hidden="true" />
+  1272→                <span className="tick tick-br" aria-hidden="true" />
+  1273→
+  1274→                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-7 md:p-9">
+  1275→                  <p className="text-[10.5px] font-semibold tracking-[0.22em] uppercase text-gold">Partner Pricing</p>
+  1276→                  <h3 className="font-serif font-medium text-[26px] mt-2">Brokerage, in plain numbers.</h3>
+  1277→
+  1278→                  <dl className="mt-7">
+  1279→                    {[
+  1280→                      { dt: 'Equity Delivery', dd: '₹0', sub: 'Hold as long as you like', gold: true },
+  1281→                      { dt: 'Intraday Equity', dd: '₹20', sub: 'Per executed order', gold: false },
+  1282→                      { dt: 'Futures & Options', dd: '₹20', sub: 'Per order, all segments', gold: false },
+  1283→                      { dt: 'Account Opening', dd: '₹0', sub: 'Paperless e-KYC', gold: true },
+  1284→                      { dt: 'Annual Maintenance', dd: '₹0', sub: 'First year, on accounts opened with us', gold: true },
+  1285→                    ].map((item, i, arr) => (
+  1286→                      <div key={item.dt} className={`flex items-baseline justify-between gap-4 py-4 ${i < arr.length - 1 ? 'border-b border-white/[0.08]' : ''}`}>
+  1287→                        <dt>
+  1288→                          <span className="text-[14px] text-white/85 font-medium">{item.dt}</span>
+  1289→                          <span className="block text-[11.5px] text-mist mt-0.5">{item.sub}</span>
+  1290→                        </dt>
+  1291→                        <dd className={`font-serif text-[26px] leading-none ${item.gold ? 'text-gold' : ''}`}>{item.dd}</dd>
+  1292→                      </div>
+  1293→                    ))}
+  1294→                  </dl>
+  1295→
+  1296→                  <p className="text-[10.5px] text-white/35 leading-relaxed mt-2">
+  1297→                    *Or 0.03% of turnover, whichever is lower, as per Angel One&apos;s published rate card. Statutory charges apply as per exchange &amp; SEBI norms.
+  1298→                  </p>
+  1299→
+  1300→                  <div className="mt-7 pt-7 border-t border-white/[0.08]">
+  1301→                    <p className="f-label">Documents you&apos;ll need</p>
+  1302→                    <div className="flex flex-wrap gap-2 mt-1">
+  1303→                      {['PAN card', 'Aadhaar', 'Bank proof', 'Photo & signature'].map((doc) => (
+  1304→                        <span key={doc} className="text-[11.5px] px-3 py-1.5 rounded border border-white/10 text-white/70 bg-white/[0.03]">
+  1305→                          {doc}
+  1306→                        </span>
+  1307→                      ))}
+  1308→                    </div>
+  1309→                  </div>
+  1310→
+  1311→                  <button
+  1312→                    onClick={() => handleInterest('account', 'Demat account onboarding')}
+  1313→                    className="btn btn-primary w-full mt-8"
+  1314→                  >
+  1315→                    Start Paperless Onboarding <ArrowUpRight className="w-4 h-4" />
+  1316→                  </button>
+  1317→                </div>
+  1318→              </div>
+  1319→            </div>
+  1320→          </div>
+  1321→        </section>
+  1322→
+  1323→        {/* ══════════ EDUCATION & ACADEMY ══════════ */}
+  1324→        <section id="courses" className="sec border-t border-white/[0.06]">
+  1325→          <div className="wrap">
+  1326→            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+  1327→              <div className="reveal">
+  1328→                <p className="eyebrow">02 · The Academy</p>
+  1329→                <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1330→                  Stock Market Education Programs
+  1331→                </h2>
+  1332→              </div>
+  1333→              <p className="reveal d1 text-[13.5px] text-mist leading-relaxed max-w-md lg:text-right">
+  1334→                Small cohorts, live-market sessions, and mentors who trade what they teach.
+  1335→                Every program includes lifetime access to recordings and our trader community.
+  1336→              </p>
+  1337→            </div>
+  1338→
+  1339→            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 mt-12">
+  1340→              {/* Card 1 — Foundations */}
+  1341→              <article className="reveal group relative flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-7 transition-colors duration-300 hover:border-gold/40">
+  1342→                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">01</span>
+  1343→                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Foundation</p>
+  1344→                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Beginner to Pro: Stock Market Basics</h3>
+  1345→                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
+  1346→                  From your first candlestick to a complete trading plan — the essentials of markets, instruments
+  1347→                  and risk, taught without jargon or hype.
+  1348→                </p>
+  1349→                <div className="flex flex-wrap gap-2 mt-5">
+  1350→                  {['Candlestick reading', 'Risk management', 'Fundamental analysis', 'Trading psychology'].map((tag) => (
+  1351→                    <span key={tag} className="text-[11px] px-2.5 py-1.5 rounded border border-white/10 text-white/70 bg-white/[0.03]">{tag}</span>
+  1352→                  ))}
+  1353→                </div>
+  1354→                <div className="mt-auto pt-6">
+  1355→                  <button
+  1356→                    onClick={() => setOpenCurriculum(openCurriculum === 'foundation' ? null : 'foundation')}
+  1357→                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
+  1358→                  >
+  1359→                    <BookOpen className="w-3.5 h-3.5" />
+  1360→                    {openCurriculum === 'foundation' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
+  1361→                    {openCurriculum === 'foundation' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+  1362→                  </button>
+  1363→                  {openCurriculum === 'foundation' && (
+  1364→                    <div className="curriculum-panel mt-3">
+  1365→                      <div className="curriculum-list">
+  1366→                        {CURRICULUM.foundation.topics.map((t, ti) => (
+  1367→                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
+  1368→                        ))}
+  1369→                      </div>
+  1370→                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
+  1371→                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
+  1372→                        {CURRICULUM.foundation.outcomes.map((o, oi) => (
+  1373→                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
+  1374→                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
+  1375→                          </div>
+  1376→                        ))}
+  1377→                      </div>
+  1378→                    </div>
+  1379→                  )}
+  1380→                  <p className="text-[11.5px] text-mist mt-4">6 weeks · Live online + Jaipur classroom · Hinglish</p>
+  1381→                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Next batch starts 15th Sept — <span className="font-semibold text-gold">4 seats left</span></p>
+  1382→                  <button
+  1383→                    onClick={() => handleInterest('courses', 'Beginner to Pro: Stock Market Basics')}
+  1384→                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
+  1385→                  >
+  1386→                    Enroll Now <ArrowUpRight className="w-4 h-4" />
+  1387→                  </button>
+  1388→                </div>
+  1389→              </article>
+  1390→
+  1391→              {/* Card 2 — Options & Derivatives (flagship) */}
+  1392→              <article className="reveal d1 group relative flex flex-col rounded-xl border border-gold/40 bg-gold/[0.03] p-6 md:p-7 transition-colors duration-300 hover:border-gold/70">
+  1393→                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">02</span>
+  1394→                <span className="absolute -top-3 left-6 bg-gold text-ink text-[9.5px] font-bold tracking-[0.18em] px-3 py-1 rounded">MOST ENROLLED</span>
+  1395→                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Advanced</p>
+  1396→                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Advanced Options &amp; Derivatives Trading</h3>
+  1397→                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
+  1398→                  Greeks, spreads and position sizing — taught on live markets. Learn to build, adjust and exit
+  1399→                  option structures with institutional discipline.
+  1400→                </p>
+  1401→                <svg viewBox="0 0 260 92" className="w-full h-auto mt-5" aria-hidden="true">
+  1402→                  <line x1="14" y1="46" x2="246" y2="46" stroke="rgba(255,255,255,0.14)" strokeDasharray="3 3" />
+  1403→                  <polyline points="24,14 130,64 236,14" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.3" strokeDasharray="4 3" />
+  1404→                  <polyline points="24,30 130,80 236,30" fill="none" stroke="#E2B15C" strokeWidth="2" />
+  1405→                  <text x="14" y="11" fontSize="8.5" fill="rgba(255,255,255,0.4)">GROSS</text>
+  1406→                  <text x="246" y="42" fontSize="8.5" fill="#E2B15C" textAnchor="end">NET OF PREMIUM</text>
+  1407→                  <text x="130" y="90" fontSize="8" fill="rgba(255,255,255,0.35)" textAnchor="middle" letterSpacing="1">LONG STRADDLE — PAYOFF AT EXPIRY</text>
+  1408→                </svg>
+  1409→                <div className="mt-auto pt-6">
+  1410→                  <button
+  1411→                    onClick={() => setOpenCurriculum(openCurriculum === 'options' ? null : 'options')}
+  1412→                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
+  1413→                  >
+  1414→                    <BookOpen className="w-3.5 h-3.5" />
+  1415→                    {openCurriculum === 'options' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
+  1416→                    {openCurriculum === 'options' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+  1417→                  </button>
+  1418→                  {openCurriculum === 'options' && (
+  1419→                    <div className="curriculum-panel mt-3">
+  1420→                      <div className="curriculum-list">
+  1421→                        {CURRICULUM.options.topics.map((t, ti) => (
+  1422→                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
+  1423→                        ))}
+  1424→                      </div>
+  1425→                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
+  1426→                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
+  1427→                        {CURRICULUM.options.outcomes.map((o, oi) => (
+  1428→                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
+  1429→                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
+  1430→                          </div>
+  1431→                        ))}
+  1432→                      </div>
+  1433→                    </div>
+  1434→                  )}
+  1435→                  <p className="text-[11.5px] text-mist mt-4">8 weeks · Live market-hour sessions · Weekend batch</p>
+  1436→                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Weekend batch starting 20th Sept — <span className="font-semibold text-gold">2 seats left</span></p>
+  1437→                  <button
+  1438→                    onClick={() => handleInterest('courses', 'Advanced Options & Derivatives Trading')}
+  1439→                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
+  1440→                  >
+  1441→                    Enroll Now <ArrowUpRight className="w-4 h-4" />
+  1442→                  </button>
+  1443→                </div>
+  1444→              </article>
+  1445→
+  1446→              {/* Card 3 — Quant & Algo */}
+  1447→              <article className="reveal d2 group relative flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-7 transition-colors duration-300 hover:border-gold/40 md:col-span-2 xl:col-span-1">
+  1448→                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">03</span>
+  1449→                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Professional</p>
+  1450→                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Quantitative &amp; Algo Trading Mastery</h3>
+  1451→                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
+  1452→                  Backtest, refine and deploy rule-based strategies with Python and Angel One SmartAPI.
+  1453→                  No prior coding experience assumed.
+  1454→                </p>
+  1455→                <div className="mt-5">
+  1456→                  <svg viewBox="0 0 260 80" className="w-full h-auto" aria-hidden="true">
+  1457→                    <path d="M4,64 L24,56 42,60 60,46 78,50 96,36 112,41 130,28 148,33 166,22 184,27 202,15 220,19 240,9 256,13 256,78 4,78 Z" fill="rgba(53,212,154,0.08)" />
+  1458→                    <path d="M4,64 L24,56 42,60 60,46 78,50 96,36 112,41 130,28 148,33 166,22 184,27 202,15 220,19 240,9 256,13" fill="none" stroke="#35D49A" strokeWidth="1.8" strokeLinejoin="round" />
+  1459→                    <text x="4" y="10" fontSize="8" fill="rgba(255,255,255,0.4)" letterSpacing="1">EQUITY CURVE — SAMPLE BACKTEST</text>
+  1460→                  </svg>
+  1461→                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] tnum text-mist mt-3">
+  1462→                    <span>CAGR <span className="text-white">26.4%</span></span>
+  1463→                    <span>Max DD <span className="text-white">−8.2%</span></span>
+  1464→                    <span>Trades <span className="text-white">1,240</span></span>
+  1465→                    <span className="text-white/35">*illustrative lab results</span>
+  1466→                  </div>
+  1467→                </div>
+  1468→                <div className="mt-auto pt-6">
+  1469→                  <button
+  1470→                    onClick={() => setOpenCurriculum(openCurriculum === 'algo' ? null : 'algo')}
+  1471→                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
+  1472→                  >
+  1473→                    <BookOpen className="w-3.5 h-3.5" />
+  1474→                    {openCurriculum === 'algo' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
+  1475→                    {openCurriculum === 'algo' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+  1476→                  </button>
+  1477→                  {openCurriculum === 'algo' && (
+  1478→                    <div className="curriculum-panel mt-3">
+  1479→                      <div className="curriculum-list">
+  1480→                        {CURRICULUM.algo.topics.map((t, ti) => (
+  1481→                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
+  1482→                        ))}
+  1483→                      </div>
+  1484→                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
+  1485→                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
+  1486→                        {CURRICULUM.algo.outcomes.map((o, oi) => (
+  1487→                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
+  1488→                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
+  1489→                          </div>
+  1490→                        ))}
+  1491→                      </div>
+  1492→                    </div>
+  1493→                  )}
+  1494→                  <p className="text-[11.5px] text-mist mt-4">10 weeks · Includes live API lab · Cohort of 15</p>
+  1495→                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Next cohort opens October — <span className="font-semibold text-gold">7 seats left</span></p>
+  1496→                  <button
+  1497→                    onClick={() => handleInterest('courses', 'Quantitative & Algo Trading Mastery')}
+  1498→                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
+  1499→                  >
+  1500→                    Enroll Now <ArrowUpRight className="w-4 h-4" />
+  1501→                  </button>
+  1502→                </div>
+  1503→              </article>
+  1504→            </div>
+  1505→          </div>
+  1506→        </section>
+  1507→
+  1508→        {/* ══════════ HOW IT WORKS ══════════ */}
+  1509→        <section id="howitworks" className="sec border-t border-white/[0.06]">
+  1510→          <div className="wrap max-w-4xl">
+  1511→            <div className="text-center reveal">
+  1512→              <p className="eyebrow justify-center">03 · How It Works</p>
+  1513→              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1514→                Three steps. Zero friction.
+  1515→              </h2>
+  1516→              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-lg mx-auto">
+  1517→                Whether you are opening your first demat account or enrolling in a program — we keep it simple, fast, and human.
+  1518→              </p>
+  1519→            </div>
+  1520→
+  1521→            <div className="mt-14 grid md:grid-cols-3 gap-8 reveal d1">
+  1522→              {[
+  1523→                {
+  1524→                  step: '01',
+  1525→                  icon: MessageCircle,
+  1526→                  title: 'Reach Out',
+  1527→                  desc: 'Fill the form, WhatsApp us, or call directly. Tell us what you need — a trading account, a course, or both.',
+  1528→                  cta: 'Start with a message',
+  1529→                  ctaKind: 'both' as const,
+  1530→                },
+  1531→                {
+  1532→                  step: '02',
+  1533→                  icon: UserCheck,
+  1534→                  title: 'Quick Onboarding',
+  1535→                  desc: 'Our team walks you through paperless e-KYC via DigiLocker. PAN, Aadhaar, bank proof — done in about 15 minutes.',
+  1536→                  cta: 'Open Demat Account',
+  1537→                  ctaKind: 'account' as const,
+  1538→                },
+  1539→                {
+  1540→                  step: '03',
+  1541→                  icon: Zap,
+  1542→                  title: 'Start Trading & Learning',
+  1543→                  desc: 'Your Angel One account goes live within 24 hours. Course batches start monthly — or get instant access to recordings.',
+  1544→                  cta: 'View Courses',
+  1545→                  ctaKind: 'courses' as const,
+  1546→                },
+  1547→              ].map((item) => (
+  1548→                <div key={item.step} className="hiw-step relative flex flex-col items-center text-center group">
+  1549→                  <div className="w-14 h-14 rounded-full border border-gold/40 bg-gold/[0.06] flex items-center justify-center text-gold group-hover:bg-gold/15 group-hover:border-gold/70 transition-all duration-300">
+  1550→                    <item.icon className="w-6 h-6" />
+  1551→                  </div>
+  1552→                  <p className="font-serif text-[48px] leading-none text-white/[0.04] absolute -top-1 right-2 select-none" aria-hidden="true">{item.step}</p>
+  1553→                  <h3 className="text-[17px] font-semibold mt-5">{item.title}</h3>
+  1554→                  <p className="text-[13.5px] text-mist leading-relaxed mt-3">{item.desc}</p>
+  1555→                  <button
+  1556→                    onClick={() => handleInterest(item.ctaKind, item.cta)}
+  1557→                    className="mt-6 text-[13px] font-medium text-gold hover:text-gold/80 transition-colors flex items-center gap-1.5"
+  1558→                  >
+  1559→                    {item.cta} <ArrowUpRight className="w-3.5 h-3.5" />
+  1560→                  </button>
+  1561→                </div>
+  1562→              ))}
+  1563→            </div>
+  1564→
+  1565→            {/* Connecting line (desktop) */}
+  1566→            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 pointer-events-none" aria-hidden="true" />
+  1567→          </div>
+  1568→        </section>
+  1569→
+  1570→        <LazySection>
+  1571→        {/* ══════════ TESTIMONIALS ══════════ */}
+  1572→        <section id="testimonials" className="sec border-t border-white/[0.06] bg-ink2/50">
+  1573→          <div className="wrap">
+  1574→            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
+  1575→              <div className="reveal">
+  1576→                <p className="eyebrow">04 · Student and Client Reviews</p>
+  1577→                <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1578→                  What Our Traders Say
+  1579→                </h2>
+  1580→              </div>
+  1581→              <p className="reveal d1 text-[13.5px] text-mist leading-relaxed max-w-md lg:text-right">
+  1582→                Real feedback from real people — no fake reviews, no incentivized ratings.
+  1583→                These are unprompted messages we have received over the years.
+  1584→              </p>
+  1585→            </div>
+  1586→
+  1587→            <div className="testimonial-scroll mt-12 reveal d1">
+  1588→              {TESTIMONIALS.map((t, i) => (
+  1589→                <div key={i} className="testimonial-card">
+  1590→                  <div className="flex items-center gap-1 mb-4">
+  1591→                    {[0,1,2,3,4].map((si) => (
+  1592→                      <Star key={si} style={{ width: 14, height: 14, fill: si < t.rating ? '#E2B15C' : 'rgba(255,255,255,0.15)', color: si < t.rating ? '#E2B15C' : 'rgba(255,255,255,0.15)' }} />
+  1593→                    ))}
+  1594→                  </div>
+  1595→                  <div className="testimonial-quote">
+  1596→                    <p className="text-[13.5px] text-mist leading-relaxed">{t.text}</p>
+  1597→                  </div>
+  1598→                  <div className="flex items-center gap-3 mt-5 pt-5 border-t border-white/[0.08]">
+  1599→                    <div className="testimonial-avatar">{t.initials}</div>
+  1600→                    <div>
+  1601→                      <p className="text-[14px] font-semibold">{t.name}</p>
+  1602→                      <p className="text-[11.5px] text-mist mt-0.5">{t.role}</p>
+  1603→                    </div>
+  1604→                  </div>
+  1605→                </div>
+  1606→              ))}
+  1607→            </div>
+  1608→          </div>
+  1609→        </section>
+  1610→        </LazySection>
+  1611→
+  1612→        <LazySection>
+  1613→        {/* ══════════ FAQ ══════════ */}
+  1614→        <section id="faq" className="sec border-t border-white/[0.06]">
+  1615→          <div className="wrap max-w-3xl">
+  1616→            <div className="reveal">
+  1617→              <p className="eyebrow">05 · Frequently Asked Questions</p>
+  1618→              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1619→                Questions We Get Asked a Lot
+  1620→              </h2>
+  1621→              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-lg">
+  1622→                Can not find what you are looking for? <a href="#contact" className="text-gold hover:underline">Reach out directly</a> — we respond within one business day.
+  1623→              </p>
+  1624→            </div>
+  1625→
+  1626→            <div className="mt-10 reveal d1">
+  1627→              {FAQS.map((f, i) => {
+  1628→                const isOpen = openFaq === i;
+  1629→                return (
+  1630→                  <div key={i} className="faq-item">
+  1631→                    <button
+  1632→                      className={`faq-toggle ${isOpen ? 'open' : ''}`}
+  1633→                      onClick={() => setOpenFaq(isOpen ? null : i)}
+  1634→                      aria-expanded={isOpen}
+  1635→                    >
+  1636→                      <span>{f.q}</span>
+  1637→                      <ChevronDown className="w-[18px] h-[18px] faq-chevron" />
+  1638→                    </button>
+  1639→                    <div
+  1640→                      className="faq-body"
+  1641→                      style={{
+  1642→                        maxHeight: isOpen ? '500px' : '0',
+  1643→                      }}
+  1644→                    >
+  1645→                      <div className="pb-5 text-[13.5px] text-mist leading-relaxed">
+  1646→                        {f.a}
+  1647→                      </div>
+  1648→                    </div>
+  1649→                  </div>
+  1650→                );
+  1651→              })}
+  1652→            </div>
+  1653→          </div>
+  1654→        </section>
+  1655→        </LazySection>
+  1656→
+  1657→        <LazySection>
+  1658→        {/* ══════════ ABOUT US ══════════ */}
+  1659→        <section id="about" className="sec border-t border-white/[0.06] bg-ink2/50">
+  1660→          <div className="wrap">
+  1661→            <p className="eyebrow reveal">06 · About Us</p>
+  1662→            <div className="grid lg:grid-cols-12 gap-12 mt-5">
+  1663→              <div className="lg:col-span-7">
+  1664→                <h2 className="reveal d1 font-serif font-medium text-[28px] sm:text-[34px] lg:text-[38px] leading-[1.16] tracking-[-0.01em]">
+  1665→                  A Jaipur desk that treats investing as a <em>process</em> — not a prediction.
+  1666→                </h2>
+  1667→                <p className="reveal d2 mt-6 text-mist text-[15px] leading-relaxed">
+  1668→                  Systematic Yield Analysts Pvt. Ltd. runs on two wings of the same philosophy. As an Authorized
+  1669→                  Partner of Angel One, we help investors access world-class broking infrastructure with local,
+  1670→                  accountable guidance. As an academy, we train the next generation of market participants to
+  1671→                  trade with rules, evidence and risk control — because we&apos;d rather build disciplined traders
+  1672→                  than sell certainty.
+  1673→                </p>
+  1674→                <p className="reveal d2 mt-4 text-[15px] leading-relaxed text-white/85">
+  1675→                  No tips. No pump groups. No guaranteed-return promises — those are red flags, and we say so plainly.
+  1676→                </p>
+  1677→              </div>
+  1678→              <div className="lg:col-span-5 reveal d2">
+  1679→                <div className="border-t border-white/[0.08]">
+  1680→                  {[
+  1681→                    { num: '01', title: 'Risk before returns', desc: 'Position sizing and stop-losses are the first thing we teach — and the last thing we compromise.' },
+  1682→                    { num: '02', title: 'Process over predictions', desc: "If it can't be written as a rule and tested on data, it doesn't belong in your portfolio." },
+  1683→                    { num: '03', title: 'Education before execution', desc: 'We make sure you understand a trade before you\'re allowed to be convinced by one.' },
+  1684→                  ].map((p) => (
+  1685→                    <div key={p.num} className="py-5 border-b border-white/[0.08]">
+  1686→                      <p className="text-[10px] font-semibold tracking-[0.2em] text-gold uppercase">Principle {p.num}</p>
+  1687→                      <p className="text-[15px] font-semibold mt-1.5">{p.title}</p>
+  1688→                      <p className="text-[13px] text-mist mt-1 leading-relaxed">{p.desc}</p>
+  1689→                    </div>
+  1690→                  ))}
+  1691→                </div>
+  1692→              </div>
+  1693→            </div>
+  1694→
+  1695→            {/* Counters */}
+  1696→            <div className="reveal mt-14 grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/[0.08] border border-white/[0.08] rounded-xl overflow-hidden">
+  1697→              <div className="bg-ink px-7 py-8">
+  1698→                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
+  1699→                  <span data-count="2400">0</span><span className="text-[24px]">+</span>
+  1700→                </div>
+  1701→                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Demat accounts guided</div>
+  1702→              </div>
+  1703→              <div className="bg-ink px-7 py-8">
+  1704→                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
+  1705→                  <span data-count="900">0</span><span className="text-[24px]">+</span>
+  1706→                </div>
+  1707→                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Traders mentored</div>
+  1708→              </div>
+  1709→              <div className="bg-ink px-7 py-8">
+  1710→                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
+  1711→                  <span data-count="12">0</span><span className="text-[24px]">&nbsp;yrs</span>
+  1712→                </div>
+  1713→                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Combined market experience</div>
+  1714→              </div>
+  1715→            </div>
+  1716→          </div>
+  1717→        </section>
+  1718→        </LazySection>
+  1719→
+  1720→
+  1721→        {/* ══════════ BLOG / INSIGHTS ══════════ */}
+  1722→        <LazySection>
+  1723→        <section id="blog" className="sec border-t border-white/[0.06] bg-ink2/50">
+  1724→          <div className="wrap">
+  1725→            <div className="reveal">
+  1726→              <p className="eyebrow">07 · Insights</p>
+  1727→              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1728→                Latest from Our <em>Desk</em>
+  1729→              </h2>
+  1730→              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-xl">
+  1731→                Market insights, trading strategies, and updates from the SYA team.
+  1732→              </p>
+  1733→            </div>
+  1734→
+  1735→            {blogPosts.length === 0 ? (
+  1736→              <div className="mt-12 reveal d1">
+  1737→                <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-12 flex flex-col items-center justify-center text-center">
+  1738→                  <BookOpen className="w-10 h-10 text-white/20 mb-4" />
+  1739→                  <p className="text-[15px] text-mist">No posts yet. Check back soon for market insights from our team.</p>
+  1740→                </div>
+  1741→              </div>
+  1742→            ) : (
+  1743→              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12 reveal d1">
+  1744→                {blogPosts.map((post, i) => (
+  1745→                  <a
+  1746→                    key={post.id}
+  1747→                    href="#"
+  1748→                    className={`bg-white/[0.02] border border-white/[0.08] rounded-xl overflow-hidden hover:border-[#E2B15C]/30 transition-colors reveal d${(i % 3) + 1}`}
+  1749→                  >
+  1750→                    <div className="h-44 bg-white/[0.03] relative overflow-hidden">
+  1751→                      {post.coverImage ? (
+  1752→                        <img src={post.coverImage} alt="" className="w-full h-full object-cover opacity-70" loading="lazy" />
+  1753→                      ) : (
+  1754→                        <div className="w-full h-full flex items-center justify-center">
+  1755→                          <FileText className="w-10 h-10 text-white/[0.08]" />
+  1756→                        </div>
+  1757→                      )}
+  1758→                      <div className="absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent" />
+  1759→                    </div>
+  1760→                    <div className="p-5">
+  1761→                      <p className="text-[10px] tracking-[0.16em] uppercase font-semibold text-[#E2B15C]">{post.category}</p>
+  1762→                      <h3 className="text-[17px] font-semibold text-white leading-snug line-clamp-2 mt-2">{post.title}</h3>
+  1763→                      <p className="text-[13px] text-[#98A2B8] leading-relaxed line-clamp-3 mt-2">{post.excerpt || ''}</p>
+  1764→                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/[0.06]">
+  1765→                        <span className="text-[12px] text-[#98A2B8]">{post.author}</span>
+  1766→                        <span className="text-[11px] text-[#5F6981] tnum">{new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+  1767→                      </div>
+  1768→                    </div>
+  1769→                  </a>
+  1770→                ))}
+  1771→              </div>
+  1772→            )}
+  1773→          </div>
+  1774→        </section>
+  1775→        </LazySection>
+  1776→
+  1777→        {/* ══════════ CONTACT & LEAD FORM ══════════ */}
+  1778→        <section id="contact" className="sec border-t border-white/[0.06]">
+  1779→          <div className="wrap grid lg:grid-cols-2 gap-14 lg:gap-20 items-start">
+  1780→            {/* Left: contact info */}
+  1781→            <div className="reveal">
+  1782→              <p className="eyebrow">08 · Get in Touch</p>
+  1783→              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
+  1784→                Talk to a human,<br />not a helpline.
+  1785→              </h2>
+  1786→              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-md">
+  1787→                Whether you&apos;re opening your first demat account or joining the next cohort — write, call, or walk in.
+  1788→                We typically respond within one business day.
+  1789→              </p>
+  1790→
+  1791→              <div className="mt-10 space-y-6">
+  1792→                <a href="mailto:connect@systematicyield.in" className="flex items-center gap-4 group">
+  1793→                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors"><Mail className="w-[18px] h-[18px]" /></span>
+  1794→                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Email</span><span className="block text-[14.5px] mt-0.5 group-hover:text-gold transition-colors">connect@systematicyield.in</span></span>
+  1795→                </a>
+  1796→                <a href="tel:+919829012345" className="flex items-center gap-4 group">
+  1797→                  {/* TODO: Replace with actual business phone number */}
+  1798→                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors"><Phone className="w-[18px] h-[18px]" /></span>
+  1799→                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Phone</span><span className="block text-[14.5px] mt-0.5 tnum group-hover:text-gold transition-colors">+91 98290 12345</span></span>
+  1800→                </a>
+  1801→                <a href="https://wa.me/919829012345?text=Hi%20SYA%20team%2C%20I%20visited%20your%20website%20and%20would%20like%20to%20know%20more." target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group">
+  1802→                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-[#25D366] flex items-center justify-center group-hover:border-[#25D366]/50 transition-colors">
+  1803→                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
+  1804→                  </span>
+  1805→                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">WhatsApp</span><span className="block text-[14.5px] mt-0.5 group-hover:text-[#25D366] transition-colors">+91 98290 12345</span></span>
+  1806→                </a>
+  1807→                <div className="flex items-center gap-4">
+  1808→                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center"><MapPin className="w-[18px] h-[18px]" /></span>
+  1809→                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Office</span><span className="block text-[14.5px] mt-0.5 leading-snug">2nd Floor, Landmark Tower, Tonk Road,<br />Jaipur, Rajasthan 302015 · <a href="https://maps.google.com/?q=Landmark+Tower+Tonk+Road+Jaipur" target="_blank" rel="noopener noreferrer" className="hover:text-gold transition-colors">Visits by appointment</a></span></span>
+  1810→                </div>
+  1811→                <div className="flex items-center gap-4">
+  1812→                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center"><Clock className="w-[18px] h-[18px]" /></span>
+  1813→                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Hours</span><span className="block text-[14.5px] mt-0.5">Monday – Saturday · 9:30 AM – 6:30 PM IST</span></span>
+  1814→                </div>
+  1815→              </div>
+  1816→
+  1817→              <div className="mt-10 border-l-2 border-gold/60 pl-5">
+  1818→                <p className="text-[13px] text-mist leading-relaxed">
+  1819→                  Opening an account? Keep your <span className="text-white">PAN, Aadhaar and a cancelled cheque</span> handy —
+  1820→                  paperless onboarding takes about 15 minutes over a call.
+  1821→                </p>
+  1822→              </div>
+  1823→            </div>
+  1824→
+  1825→            {/* Right: lead form */}
+  1826→            <div className="reveal d1">
+  1827→              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
+  1828→                {!formSubmitted ? (
+  1829→                  <div id="formWrap">
+  1830→                    <h3 className="font-serif font-medium text-[22px]">Request a callback</h3>
+  1831→                    <p className="text-[12px] text-mist mt-1.5">Tell us a little about yourself — fields marked * are required.</p>
+  1832→
+  1833→                    <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-7 space-y-5">
+  1834→                      <div className="grid sm:grid-cols-2 gap-5">
+  1835→                        <div className="field">
+  1836→                          <label htmlFor="fName" className="f-label">Full Name *</label>
+  1837→                          <input
+  1838→                            ref={fNameRef}
+  1839→                            id="fName"
+  1840→                            type="text"
+  1841→                            className={`f-input ${formErrors.name ? 'err' : ''}`}
+  1842→                            placeholder="e.g. Rohan Sharma"
+  1843→                            autoComplete="name"
+  1844→                            onInput={() => { setErr('name', null); trackFormInput(); }}
+  1845→                          />
+  1846→                          <p className={`${formErrors.name ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.name || ''}</p>
+  1847→                        </div>
+  1848→                        <div className="field">
+  1849→                          <label htmlFor="fPhone" className="f-label">Phone Number *</label>
+  1850→                          <input
+  1851→                            ref={fPhoneRef}
+  1852→                            id="fPhone"
+  1853→                            type="tel"
+  1854→                            inputMode="tel"
+  1855→                            className={`f-input tnum ${formErrors.phone ? 'err' : ''}`}
+  1856→                            placeholder="10-digit mobile"
+  1857→                            autoComplete="tel"
+  1858→                            onInput={() => { setErr('phone', null); trackFormInput(); }}
+  1859→                          />
+  1860→                          <p className={`${formErrors.phone ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.phone || ''}</p>
+  1861→                        </div>
+  1862→                      </div>
+  1863→                      <div className="field">
+  1864→                        <label htmlFor="fEmail" className="f-label">Email *</label>
+  1865→                        <input
+  1866→                          ref={fEmailRef}
+  1867→                          id="fEmail"
+  1868→                          type="email"
+  1869→                          className={`f-input ${formErrors.email ? 'err' : ''}`}
+  1870→                          placeholder="you@example.com"
+  1871→                          autoComplete="email"
+  1872→                          onInput={() => { setErr('email', null); trackFormInput(); }}
+  1873→                        />
+  1874→                        <p className={`${formErrors.email ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.email || ''}</p>
+  1875→                      </div>
+  1876→                      <div className="field">
+  1877→                        <label htmlFor="fInterest" className="f-label">Interested In: *</label>
+  1878→                        <div className="relative">
+  1879→                          <select
+  1880→                            ref={fInterestRef}
+  1881→                            id="fInterest"
+  1882→                            className={`f-input appearance-none pr-10 ${selectFlash ? 'sel-flash' : ''} ${formErrors.interest ? 'err' : ''}`}
+  1883→                            onChange={() => { setErr('interest', null); trackFormInput(); }}
+  1884→                            defaultValue=""
+  1885→                          >
+  1886→                            <option value="" disabled>Select an option</option>
+  1887→                            <option value="account">Opening a Demat &amp; Trading Account</option>
+  1888→                            <option value="courses">Stock Market Education Programs</option>
+  1889→                            <option value="both">Both — Account + Courses</option>
+  1890→                          </select>
+  1891→                          <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
+  1892→                        </div>
+  1893→                        <p className={`${formErrors.interest ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.interest || ''}</p>
+  1894→                      </div>
+  1895→                      <div className="field">
+  1896→                        <label htmlFor="fMsg" className="f-label">Message <span className="normal-case tracking-normal text-white/35">(optional)</span></label>
+  1897→                        <textarea
+  1898→                          id="fMsg"
+  1899→                          rows={3}
+  1900→                          className="f-input resize-none"
+  1901→                          placeholder="Anything specific you'd like to ask?"
+  1902→                          onInput={trackFormInput}
+  1903→                        />
+  1904→                      </div>
+  1905→
+  1906→                      <p className="text-[11px] text-white/40 leading-relaxed">
+  1907→                        By submitting, you authorize Systematic Yield Analysts to contact you via call, WhatsApp or email
+  1908→                        regarding our services. We never share your details with third parties.
+  1909→                      </p>
+  1910→
+  1911→                      <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
+  1912→                        <span>{submitting ? 'Submitting…' : 'Submit Inquiry'}</span> {!submitting && <ArrowRight className="w-4 h-4" />}
+  1913→                      </button>
+  1914→                    </form>
+  1915→                  </div>
+  1916→                ) : (
+  1917→                  <div id="formSuccess" className="text-center py-10">
+  1918→                    <span className="mx-auto w-14 h-14 rounded-full border border-up/40 bg-up/10 flex items-center justify-center text-up">
+  1919→                      <CheckCircle2 className="w-7 h-7" />
+  1920→                    </span>
+  1921→                    <h4 className="font-serif font-medium text-[24px] mt-5">Inquiry received.</h4>
+  1922→                    <p className="text-[13.5px] text-mist mt-2.5 leading-relaxed max-w-sm mx-auto">
+  1923→                      Thank you, <span className="text-white">{submitterName}</span>. Our team will reach out within one business day.
+  1924→                      {submittedInterest !== 'courses' && (
+  1925→                        <>
+  1926→                          {' '}The Angel One eKYC page should open automatically — if not,{' '}
+  1927→                          <a href="https://angelone.in/?ref=systematicyield" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">click here to start onboarding</a>.
+  1928→                        </>
+  1929→                      )}
+  1930→                    </p>
+  1931→                    <button
+  1932→                      onClick={resetForm}
+  1933→                      className="btn btn-ghost mt-7 !py-2.5 !text-[13px]"
+  1934→                    >
+  1935→                      Submit another inquiry
+  1936→                    </button>
+  1937→                  </div>
+  1938→                )}
+  1939→              </div>
+  1940→            </div>
+  1941→          </div>
+  1942→        </section>
+  1943→      </main>
+  1944→
+  1945→      {/* ══════════ REGULATORY FOOTER ══════════ */}
+  1946→      <footer className="border-t border-white/[0.08] bg-[#060910] mt-auto">
+  1947→        <div className="wrap py-14 md:py-16">
+  1948→          <div className="grid md:grid-cols-12 gap-10">
+  1949→            <div className="md:col-span-5">
+  1950→              <a href="#home" className="flex items-center gap-3">
+  1951→                <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
+  1952→                  <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="7" fill="none" stroke="#E2B15C" strokeWidth="1.4" opacity=".8" />
+  1953→                  <path d="M8 22 L13 16 L17 19 L24 10" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  1954→                  <circle cx="24" cy="10" r="2.3" fill="#E2B15C" />
+  1955→                </svg>
+  1956→                <span className="leading-tight">
+  1957→                  <span className="block text-[15px] font-semibold tracking-tight">Systematic Yield</span>
+  1958→                  <span className="block text-[9px] font-medium tracking-[0.24em] text-mist uppercase">Analysts · Angel One Partner</span>
+  1959→                </span>
+  1960→              </a>
+  1961→              <p className="text-[13px] text-mist leading-relaxed mt-5 max-w-sm">
+  1962→                An Angel One Authorized Partner desk and stock market academy based in Jaipur —
+  1963→                helping investors trade with structure, not sentiment.
+  1964→              </p>
+  1965→              {/* TODO: Replace with actual business phone number */}
+  1966→              <p className="text-[12px] text-white/40 mt-4 tnum">+91 98290 12345 · connect@systematicyield.in</p>
+  1967→            </div>
+  1968→
+  1969→            <div className="md:col-span-3">
+  1970→              <p className="f-label">Explore</p>
+  1971→              <div className="flex flex-col gap-3 mt-2 text-[13.5px]">
+  1972→                {navLinks.map((id) => (
+  1973→                  <a key={id} href={`#${id}`} className="text-mist hover:text-gold transition-colors w-fit">
+  1974→                    {navLabels[id]}
+  1975→                  </a>
+  1976→                ))}
+  1977→              </div>
+  1978→            </div>
+  1979→
+  1980→            <div className="md:col-span-4">
+  1981→              <p className="f-label">Programs</p>
+  1982→              <div className="flex flex-col gap-3 mt-2 text-[13.5px]">
+  1983→                {[
+  1984→                  { label: 'Beginner to Pro: Stock Market Basics', interest: 'courses' },
+  1985→                  { label: 'Advanced Options & Derivatives Trading', interest: 'courses' },
+  1986→                  { label: 'Quantitative & Algo Trading Mastery', interest: 'courses' },
+  1987→                ].map((p) => (
+  1988→                  <button
+  1989→                    key={p.label}
+  1990→                    onClick={() => handleInterest(p.interest, p.label)}
+  1991→                    className="text-mist hover:text-gold transition-colors text-left w-fit"
+  1992→                  >
+  1993→                    {p.label}
+  1994→                  </button>
+  1995→                ))}
+  1996→                <a href="#demat" className="text-mist hover:text-gold transition-colors w-fit">Angel One Pricing →</a>
+  1997→              </div>
+  1998→            </div>
+  1999→          </div>
+  2000→
+
+[showing lines 1-2000 of 2268; use offset=2001 with limit to continue reading]
