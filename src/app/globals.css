@@ -879,3 +879,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* Smooth-scroll for ToC anchor jumps, with offset for the reading-progress bar. */
 html { scroll-behavior: smooth; }
 :target { scroll-margin-top: 80px; }
+
+/* Active ToC link (highlighted by IntersectionObserver via ActiveTocHighlighter) */
+.toc-link-active {
+  border-color: #E2B15C !important;
+  color: #E2B15C !important;
+  font-weight: 500;
+}

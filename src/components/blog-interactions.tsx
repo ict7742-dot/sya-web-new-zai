@@ -89,3 +89,38 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
     </div>
   );
 }
+
+/**
+ * Highlights the current ToC entry based on which heading is in view.
+ * Uses IntersectionObserver with a rootMargin that triggers ~30% down the
+ * viewport so the active item updates as you read, not only at the very top.
+ */
+export function ActiveTocHighlighter() {
+  useEffect(() => {
+    const headings = Array.from(document.querySelectorAll<HTMLElement>('article .markdown-body h2[id]'));
+    const tocLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('aside nav a'));
+    if (headings.length === 0 || tocLinks.length === 0) return;
+
+    const linkFor = (id: string) =>
+      tocLinks.find((a) => a.getAttribute('href') === `#${id}`);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Find the topmost intersecting heading.
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        const activeId = visible[0]?.target.id;
+
+        tocLinks.forEach((l) => l.classList.remove('toc-link-active'));
+        if (activeId) linkFor(activeId)?.classList.add('toc-link-active');
+      },
+      { rootMargin: '-80px 0px -65% 0px', threshold: 0 }
+    );
+
+    headings.forEach((h) => observer.observe(h));
+    return () => observer.disconnect();
+  }, []);
+
+  return null;
+}

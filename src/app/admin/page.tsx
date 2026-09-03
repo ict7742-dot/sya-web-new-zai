@@ -14,6 +14,7 @@ import {
   EyeOff,
   X,
   Loader2,
+  Mail,
 } from 'lucide-react';
 
 /* ═══════════════ Types ═══════════════ */
@@ -143,7 +144,7 @@ export default function AdminPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Navigation
-  const [tab, setTab] = useState<'leads' | 'blogs'>('leads');
+  const [tab, setTab] = useState<'leads' | 'blogs' | 'subscribers'>('leads');
 
   // Leads
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -158,6 +159,12 @@ export default function AdminPage() {
 
   // Blog Form Modal
   const [showBlogForm, setShowBlogForm] = useState(false);
+
+  // Subscribers (newsletter)
+  const [subscribers, setSubscribers] = useState<Array<{ email: string; source: string; active: boolean; createdAt: string }>>([]);
+  const [totalSubscribers, setTotalSubscribers] = useState(0);
+  const [subscribersLoading, setSubscribersLoading] = useState(false);
+  const [subscribersError, setSubscribersError] = useState('');
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
   const [blogForm, setBlogForm] = useState<BlogFormData>(emptyBlogForm);
   const [blogFormErrors, setBlogFormErrors] = useState<Record<string, string>>({});
@@ -262,6 +269,60 @@ export default function AdminPage() {
   useEffect(() => {
     if (token && tab === 'leads') fetchLeads();
   }, [token, tab, fetchLeads]);
+
+  // ─── Subscribers ───
+  const fetchSubscribers = useCallback(async () => {
+    if (!token) return;
+    setSubscribersLoading(true);
+    setSubscribersError('');
+    try {
+      const res = await fetch('/api/newsletter', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        doLogout();
+        return;
+      }
+      if (!res.ok) throw new Error('Failed to fetch subscribers');
+      const data = await res.json();
+      setSubscribers(data.recent || []);
+      setTotalSubscribers(data.total || 0);
+    } catch {
+      setSubscribersError('Failed to load subscribers.');
+    } finally {
+      setSubscribersLoading(false);
+    }
+  }, [token]);
+
+  const exportSubscribersCsv = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/newsletter?format=csv', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) {
+        doLogout();
+        return;
+      }
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `sya-newsletter-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Subscribers exported.', 'success');
+    } catch {
+      showToast('Export failed.', 'error');
+    }
+  };
+
+  useEffect(() => {
+    if (token && tab === 'subscribers') fetchSubscribers();
+  }, [token, tab, fetchSubscribers]);
 
   // ─── Blogs ───
 
@@ -600,6 +661,17 @@ export default function AdminPage() {
             <FileText size={16} />
             Blog Posts
           </button>
+          <button
+            onClick={() => setTab('subscribers')}
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              tab === 'subscribers'
+                ? 'border-[#E2B15C] text-[#E2B15C]'
+                : 'border-transparent text-[#98A2B8] hover:text-[#E8EBF2]'
+            }`}
+          >
+            <Mail size={16} />
+            Subscribers
+          </button>
         </div>
 
         {/* ══════════ Leads Tab ══════════ */}
@@ -840,6 +912,104 @@ export default function AdminPage() {
                                 <Trash2 size={14} />
                               </button>
                             </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════ Subscribers Tab ══════════ */}
+        {tab === 'subscribers' && (
+          <div>
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              {[
+                { label: 'Total Subscribers', value: totalSubscribers, icon: Mail },
+                { label: 'Active', value: subscribers.filter((s) => s.active).length, icon: Mail },
+              ].map((stat) => {
+                const Icon = stat.icon;
+                return (
+                  <div
+                    key={stat.label}
+                    className="bg-[#0C1322] border border-white/[0.08] rounded-lg p-5 flex items-center gap-4"
+                  >
+                    <div className="w-11 h-11 rounded-lg bg-[#E2B15C]/10 flex items-center justify-center text-[#E2B15C]">
+                      <Icon size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[#98A2B8] text-xs uppercase tracking-[0.16em] font-semibold">
+                        {stat.label}
+                      </p>
+                      <p className="text-[#E8EBF2] text-2xl font-semibold tnum mt-1">
+                        {stat.value}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Header row with export */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-[#98A2B8]">
+                Showing the 10 most recent subscribers. Export for the full list.
+              </p>
+              <button
+                onClick={exportSubscribersCsv}
+                disabled={totalSubscribers === 0}
+                className="inline-flex items-center gap-2 rounded-md border border-white/[0.12] bg-[#0C1322] px-4 py-2 text-sm font-medium text-[#E8EBF2] transition-colors hover:border-[#E2B15C]/40 hover:text-[#E2B15C] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Download size={15} />
+                Export CSV
+              </button>
+            </div>
+
+            {/* Table or empty/error */}
+            {subscribersLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="animate-spin text-[#E2B15C]" size={28} />
+              </div>
+            ) : subscribersError ? (
+              <div className="text-center py-16 text-[#F0555F] text-sm">{subscribersError}</div>
+            ) : subscribers.length === 0 ? (
+              <div className="text-center py-16 border border-white/[0.08] rounded-lg">
+                <Mail className="mx-auto mb-3 text-white/15" size={32} />
+                <p className="text-[#98A2B8]">No subscribers yet. Signups from the blog &amp; landing will appear here.</p>
+              </div>
+            ) : (
+              <div className="bg-[#0C1322] border border-white/[0.08] rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/[0.08] text-left text-[#98A2B8] uppercase text-[11px] tracking-[0.14em]">
+                        <th className="px-5 py-3 font-semibold">Email</th>
+                        <th className="px-5 py-3 font-semibold">Source</th>
+                        <th className="px-5 py-3 font-semibold">Status</th>
+                        <th className="px-5 py-3 font-semibold">Subscribed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subscribers.map((s) => (
+                        <tr key={s.email} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.02]">
+                          <td className="px-5 py-3.5 text-[#E8EBF2] font-mono text-[13px]">{s.email}</td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center rounded-full bg-white/[0.06] px-2.5 py-0.5 text-xs text-[#C6CDDB] capitalize">
+                              {s.source}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs ${s.active ? 'bg-[#35D49A]/12 text-[#35D49A]' : 'bg-white/[0.06] text-[#98A2B8]'}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${s.active ? 'bg-[#35D49A]' : 'bg-[#98A2B8]'}`} />
+                              {s.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 text-[#98A2B8] text-xs tnum">
+                            {new Date(s.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                           </td>
                         </tr>
                       ))}

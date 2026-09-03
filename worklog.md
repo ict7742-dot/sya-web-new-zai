@@ -104,3 +104,47 @@ Unresolved / next-phase priorities:
 - Consider encrypting PII (phone/email) at rest for SEBI compliance.
 - Add an admin view for newsletter subscribers + CSV export.
 - ToC active-section highlighting on scroll (currently hover-only).
+
+---
+Task ID: review-3
+Agent: main (webDevReview cron loop, round 3)
+Task: QA current state + dynamic OG images + admin newsletter management + ToC active highlighting + styling polish
+
+Current project status / assessment:
+- Project stable from review-2 (landing/blog/admin all 200, blog ecosystem + newsletter capture live).
+- agent-browser QA surfaced 3 gaps: (1) blog posts had NO dynamic OG image (social shares used a generic static SVG), (2) ToC active-section highlighting was a documented next-phase gap (hover-only), (3) admin had no view for newsletter subscribers (subscribers collected but invisible to operators).
+- No bugs/runtime errors found; lint clean.
+
+Work Log:
+- NEW FEATURE — Dynamic OG images: Created `src/app/blog/[slug]/opengraph-image.tsx` (file-based OG route, `next/og` ImageResponse). Renders 1200×630 brand image: gold border frame, chart logo, category pill, "Insights" eyebrow, large title (clamped), author + URL footer, plus a faint grid-paper texture + candlestick-chart watermark on the right to balance composition. Node runtime (not edge) so SQLite Prisma client works. `revalidate=3600`. Hit 2 issues + fixed: (a) Prisma edge-runtime error → switched to `runtime='nodejs'`; (b) Next.js 16 async params → awaited `params`. Bumped watermark opacity 0.22→0.32 per VLM feedback.
+- Updated `generateMetadata` in blog detail to NOT set explicit `images` (would override the file-based OG image) and added a `twitter: summary_large_image` card. Next.js now auto-injects `og:image` + `twitter:image` meta tags pointing to the generated route (verified in DOM).
+- NEW FEATURE — Admin newsletter management: Added `GET /api/newsletter` (admin-auth via verifyAdmin) returning total + 10 recent subscribers, plus `?format=csv` export of all subscribers. Fail-closed 401 without token.
+- Added "Subscribers" tab to admin dashboard (`src/app/admin/page.tsx`): stat cards (Total / Active), subscriber table (email mono, source pill, active/inactive status dot, date), Export CSV button, loading/empty/error states. Imported `Mail` icon. Added fetch + export logic mirroring the leads pattern.
+- STYLING — ToC active highlighting: Added `ActiveTocHighlighter` client component (IntersectionObserver, rootMargin `-80px 0 -65% 0`) that toggles `.toc-link-active` on the current section's ToC link. Added custom `h2` react-markdown component that injects id attributes (react-markdown doesn't auto-id headings). Wired `<ActiveTocHighlighter>` into blog detail. Added `.toc-link-active` CSS (gold border + text).
+- Added `twitter` card metadata to blog detail `generateMetadata`.
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯ after fixes.
+- Routes: `/` 200, `/blog` 200, `/admin` 200, `/blog/[slug]` 200, `/blog/[slug]/opengraph-image` 200 (94KB PNG, 1.2s).
+- OG image: `og:image` + `twitter:image` meta tags now point to the generated `opengraph-image` route (confirmed in DOM). VLM rated OG image **8/10** initially ("left-heavy, empty right") → added candlestick watermark + grid texture → VLM confirmed "balance improved significantly, from 'good but empty' to 'professional and purposeful'".
+- Admin subscribers tab: Total Subscribers=1, Active=1, 1 table row with email, Export CSV button present (verified via agent-browser). CSV export returns proper `Email,Source,Active,Subscribed At` rows.
+- Newsletter GET without token → 401 (fail-closed). With token → 200 JSON.
+- ToC active highlighting: scrolled down on blog detail → "The setup" ToC link gained `toc-link-active` (gold) class (verified via agent-browser eval). H2 elements now have id attributes.
+- VLM re-assessment of blog detail: confirmed all elements present (progress bar, hero, category pill, reading time, share buttons, ToC sidebar with active state, markdown body, prev/next nav, breadcrumbs, newsletter card).
+- Screenshots saved: `download/og-sample-v2.png`, `download/blog-detail-v3.png`, `download/admin-subscribers.png`.
+
+Stage Summary:
+- Blog posts now get a unique, branded, dynamic OG image for social sharing (was generic SVG).
+- Admins can view newsletter subscribers + export CSV (was previously invisible).
+- ToC active-section highlighting live (was hover-only).
+- All 3 documented gaps from review-2 closed.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an unsubscribe route/token for newsletter (currently subscribers can't self-unsubscribe).
+- Wire the OG image route into a fallback for non-existent slugs (currently returns a generic "Insights" card — acceptable).
