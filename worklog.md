@@ -465,3 +465,45 @@ Unresolved / next-phase priorities:
 - Add a "recently updated" badge to posts edited after publishing.
 - Show view count on the blog detail page itself (social proof).
 - Add the PopularPosts widget to the blog detail page sidebar too.
+
+---
+Task ID: review-11
+Agent: main (webDevReview cron loop, round 11)
+Task: QA + blog detail view count + popular posts sidebar
+
+Current project status / assessment:
+- Project stable from review-10 (all routes 200, view tracking + popular posts widget on /blog + command palette highlighting live).
+- agent-browser QA confirmed two documented gaps on the blog detail page: (1) no view count displayed (posts tracked views but didn't show them — social proof missed), (2) no PopularPosts widget in the blog detail sidebar (only on /blog index).
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- NEW FEATURE — View count on blog detail hero: added an Eye icon + "{views} views" pill to the hero meta row (alongside the category pill and reading time). The `views` field is already fetched by the existing `findUnique` (all scalar fields returned by default), so no query change needed. View count updates on every page load (fire-and-forget increment from round 10).
+- NEW FEATURE — PopularPosts widget in blog detail sidebar: restructured the sidebar (`<aside>`) to always render (was conditional on `toc.length > 0`). Now shows the Table of Contents (when headings exist) above the PopularPosts widget, both in a sticky container. Widened the sidebar grid column from 220px → 280px to accommodate the popular posts card.
+- Imported `Eye` from lucide-react and `PopularPosts` from `@/components/popular-posts`.
+
+Verification results (agent-browser + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Routes: `/` 200, `/blog` 200, `/search` 200, `/admin` 200, `/blog/[slug]` 200.
+- Blog detail: view count "72 views" in hero meta row (Eye icon). Popular posts sidebar with 5 items. ToC still present above the popular widget. Sidebar width 280px.
+- View count increments on reload (verified: was 67 at seed, now 72 after page loads).
+- VLM rated the blog detail **9/10** — confirmed category + reading time + view count all present in hero; both ToC and "Popular this week" widget in sidebar; "well-balanced sidebar... premium fintech aesthetic... executed flawlessly."
+- Screenshot saved: `download/blog-detail-viewcount-popular.png`.
+
+Stage Summary:
+- Blog detail page now shows view count as social proof in the hero.
+- PopularPosts widget added to the blog detail sidebar (alongside ToC), creating engagement loops: read article → see popular posts → read next.
+- Both documented gaps from review-10's next-phase priorities closed.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add reading-time aggregate on author + category pages.
+- Add blog cover image generation (AI-generated hero images for posts without coverImage).
+- Add a "recently updated" badge to posts edited after publishing.
+- Add the PopularPosts widget to the /search page sidebar (currently no sidebar on search).
+- Add a "related authors" or "more from this category" section to author pages.

@@ -2,10 +2,11 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight, FileText, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight, FileText, Sparkles, Eye } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { ReadingProgress, ShareButtons, ActiveTocHighlighter } from '@/components/blog-interactions';
 import { Newsletter } from '@/components/newsletter';
+import { PopularPosts } from '@/components/popular-posts';
 
 type Params = { slug: string };
 
@@ -150,6 +151,9 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
             <span className="inline-flex items-center gap-1.5 text-[#98A2B8]">
               <Clock className="h-3.5 w-3.5" /> {mins} min read
             </span>
+            <span className="inline-flex items-center gap-1.5 text-[#98A2B8]">
+              <Eye className="h-3.5 w-3.5 text-[#E2B15C]" /> {post.views} {post.views === 1 ? 'view' : 'views'}
+            </span>
           </div>
 
           <h1 className="mt-5 max-w-3xl font-[family-name:var(--font-fraunces)] text-3xl font-semibold leading-[1.12] md:text-5xl">
@@ -182,7 +186,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
       {/* Body + sidebar */}
       <div className="wrap px-5 py-14 md:px-8 md:py-20">
-        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_220px] lg:gap-12">
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-12">
           <div className="min-w-0 lg:col-start-1">
             {post.coverImage && (
               <img
@@ -200,27 +204,30 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
             </div>
           </div>
 
-          {/* Table of contents sidebar (sticky on desktop) */}
-          {toc.length > 0 && (
-            <aside className="hidden lg:col-start-2 lg:block">
-              <div className="sticky top-8">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#98A2B8]">
-                  On this page
-                </p>
-                <nav className="space-y-2 border-l border-white/10">
-                  {toc.map((item) => (
-                    <a
-                      key={item.id}
-                      href={`#${item.id}`}
-                      className="-ml-px block border-l-2 border-transparent py-1 pl-4 text-[13px] leading-snug text-[#98A2B8] transition-colors hover:border-[#E2B15C] hover:text-[#E2B15C]"
-                    >
-                      {item.text}
-                    </a>
-                  ))}
-                </nav>
-              </div>
-            </aside>
-          )}
+          {/* Sidebar: Table of contents + Popular posts (sticky on desktop) */}
+          <aside className="hidden lg:col-start-2 lg:block">
+            <div className="sticky top-8 space-y-8">
+              {toc.length > 0 && (
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#98A2B8]">
+                    On this page
+                  </p>
+                  <nav className="space-y-2 border-l border-white/10">
+                    {toc.map((item) => (
+                      <a
+                        key={item.id}
+                        href={`#${item.id}`}
+                        className="-ml-px block border-l-2 border-transparent py-1 pl-4 text-[13px] leading-snug text-[#98A2B8] transition-colors hover:border-[#E2B15C] hover:text-[#E2B15C]"
+                      >
+                        {item.text}
+                      </a>
+                    ))}
+                  </nav>
+                </div>
+              )}
+              <PopularPosts />
+            </div>
+          </aside>
         </div>
       </div>
 
