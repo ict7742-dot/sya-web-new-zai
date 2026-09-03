@@ -193,3 +193,50 @@ Unresolved / next-phase priorities:
 - Add a "resubscribe" path that re-activates a deactivated subscriber (currently resubscribe via the same email regenerates the token + reactivates — already works, but could have a dedicated re-subscribe page).
 - Add an admin "send test newsletter" action (compose + send to active subscribers) — requires an email provider integration.
 - Add a blog author profile page (`/blog/author/[name]`) with their posts.
+
+---
+Task ID: review-5
+Agent: main (webDevReview cron loop, round 5)
+Task: Re-seed blog posts + blog author profile pages + related posts section + styling polish
+
+Current project status / assessment:
+- Project stable from review-4. Note: DB was force-reset in round 4 (to add the required unsubscribeToken field), so all blog posts were lost.
+- Re-seeded 7 blog posts across 4 authors (SYA Desk, NISM Faculty, Compliance Desk, Academy Team) and 4 categories.
+- agent-browser QA confirmed two documented feature gaps: (1) no author profile page (authors named but not clickable), (2) no related posts section on blog detail (readers finish an article with nowhere to go except prev/next).
+- No bugs/runtime errors; lint clean.
+
+Work Log:
+- Re-seeded 7 blog posts via POST /api/blogs (admin-authenticated) across all 4 categories and 4 authors.
+- NEW FEATURE — Author profile page (`/blog/author/[name]`): server component with a `resolveAuthor()` helper that fetches distinct authors from the DB and matches by slug (preserves acronyms like "NISM", "SYA"). Renders a hero with a gold-gradient avatar (initials), author name (serif), bio, article count + category tags, then reuses the `<BlogBrowser>` component (filter + search + grid) for that author's posts. `generateMetadata` for per-author OG tags. 404 for unknown authors.
+  - Bug fixed: initial `slugToName()` capitalised each word ("nism-faculty" → "Nism Faculty"), which didn't match the DB ("NISM Faculty"). Replaced with DB-backed `resolveAuthor()` that matches the actual stored author name by slug.
+  - Bug fixed: import path `../blog-browser` was wrong for `blog/author/[name]/page.tsx` (needed `../../blog-browser`).
+- NEW FEATURE — Related posts section on blog detail: fetches up to 3 other published posts in the same category (excluding current) via a parallel `findMany`. Renders a "Keep reading" eyebrow + "More from [category]" heading + a 3-col grid of blog cards (reusing the `.blog-card` styles with hover lift + zoom).
+- Author name on blog detail is now a clickable link to `/blog/author/[slug]` (was plain text).
+- STYLING: Added `.author-avatar-lg` CSS (88px gold-gradient ring with initials, gold glow shadow, responsive 64px on mobile).
+- Added `Sparkles` + `FileText` icons to blog detail imports.
+
+Verification results (agent-browser + curl + VLM):
+- `bun run lint` → 0 errors, 0 warnings.
+- dev.log clean — no errors/⨯.
+- Author pages: `/blog/author/sya-desk` 200, `/blog/author/nism-faculty` 200, `/blog/author/compliance-desk` 200, `/blog/author/academy-team` 200, `/blog/author/nobody` 404.
+- Author page content verified: avatar with "NF" initials, heading "NISM Faculty", bio present, "2 articles" count, category tags, 2 post cards in grid, "Articles by NISM Faculty" section heading.
+- Blog detail: author name is now a link to `/blog/author/nism-faculty` (verified in DOM). Related posts section renders "Keep reading" eyebrow + "More from Trading Tips" + 1 related card (Position Sizing has 1 sibling in Trading Tips).
+- VLM confirmed author page renders all elements correctly (avatar, name, bio, count, category tags, posts grid). Confirmed design language is "excellent and professional" (dark navy + gold, serif headings).
+- Screenshots saved: `download/author-page-full.png`, `download/blog-detail-related.png`.
+
+Stage Summary:
+- Blog author profile pages live — authors are now first-class entities with their own pages (bio, avatar, article list, filter + search).
+- Related posts section keeps readers in the content funnel after finishing an article.
+- Author names on blog detail are now clickable, creating a discoverable author → posts → related posts navigation loop.
+- DB re-seeded with 7 posts across 4 authors/categories.
+
+Unresolved / next-phase priorities:
+- Split the 2,267-line monolithic `src/app/page.tsx` into section components (still pending from review-1).
+- Move admin token from sessionStorage → httpOnly cookie (XSS hardening).
+- Add admin login brute-force rate limiting + pagination for leads/subscribers lists.
+- Add a marketing-page Content-Security-Policy (currently only /api/ has CSP).
+- Consider encrypting PII (phone/email) at rest for SEBI compliance.
+- Add an admin "send newsletter" action (compose + send to active subscribers) — requires email provider.
+- Add a blog category index page (`/blog/category/[name]`) — currently category filtering is client-side only on /blog.
+- Add search across the whole site (blog + landing sections).
+- Add reading-time aggregate on author pages.

@@ -886,3 +886,24 @@ html { scroll-behavior: smooth; }
   color: #E2B15C !important;
   font-weight: 500;
 }
+
+/* ══════════ Author profile page ══════════ */
+.author-avatar-lg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  font-family: var(--font-fraunces), serif;
+  font-size: 30px;
+  font-weight: 600;
+  color: #E2B15C;
+  background: linear-gradient(135deg, rgba(226,177,92,0.18), rgba(226,177,92,0.05));
+  border: 1px solid rgba(226,177,92,0.3);
+  box-shadow: 0 0 40px -8px rgba(226,177,92,0.25);
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .author-avatar-lg { width: 64px; height: 64px; font-size: 22px; }
+}

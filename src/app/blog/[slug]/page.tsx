@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
-import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight, FileText, Sparkles } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { ReadingProgress, ShareButtons, ActiveTocHighlighter } from '@/components/blog-interactions';
 import { Newsletter } from '@/components/newsletter';
@@ -77,8 +77,9 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
   if (!post || !post.published) notFound();
 
-  // Fetch prev/next published posts (by creation date) for article navigation.
-  const [older, newer] = await Promise.all([
+  // Fetch prev/next published posts (by creation date) + related posts (same
+  // category, excluding current) for article navigation.
+  const [older, newer, related] = await Promise.all([
     db.blogPost.findFirst({
       where: { published: true, createdAt: { lt: post.createdAt } },
       orderBy: { createdAt: 'desc' },
@@ -88,6 +89,15 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       where: { published: true, createdAt: { gt: post.createdAt } },
       orderBy: { createdAt: 'asc' },
       select: { slug: true, title: true },
+    }),
+    db.blogPost.findMany({
+      where: { published: true, category: post.category, slug: { not: post.slug } },
+      orderBy: { createdAt: 'desc' },
+      take: 3,
+      select: {
+        id: true, slug: true, title: true, excerpt: true, coverImage: true,
+        category: true, author: true, createdAt: true,
+      },
     }),
   ]);
 
@@ -146,7 +156,13 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
           <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/[0.08] py-4 text-sm text-[#98A2B8]">
             <span className="inline-flex items-center gap-2">
-              <User className="h-4 w-4 text-[#E2B15C]" /> {post.author}
+              <User className="h-4 w-4 text-[#E2B15C]" />
+              <Link
+                href={`/blog/author/${post.author.toLowerCase().replace(/\s+/g, '-')}`}
+                className="transition-colors hover:text-[#E2B15C] hover:underline underline-offset-2"
+              >
+                {post.author}
+              </Link>
             </span>
             <span className="inline-flex items-center gap-2">
               <Calendar className="h-4 w-4 text-[#E2B15C]" /> {fmt(post.createdAt)}
@@ -230,6 +246,53 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
                 <span className="post-nav-title">{newer.title}</span>
               </Link>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Related posts — same category, keeps readers in the funnel */}
+      {related.length > 0 && (
+        <div className="border-t border-white/[0.06]">
+          <div className="wrap px-5 py-14 md:px-8 md:py-20">
+            <p className="eyebrow mb-3">
+              <Sparkles className="h-3.5 w-3.5" /> Keep reading
+            </p>
+            <h2 className="mb-8 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#E8EBF2] md:text-3xl">
+              More from <em>{post.category}</em>
+            </h2>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {related.map((rp) => (
+                <Link key={rp.id} href={`/blog/${rp.slug}`} className="blog-card group flex flex-col">
+                  <div className="blog-card-cover">
+                    {rp.coverImage ? (
+                      <img
+                        src={rp.coverImage}
+                        alt={rp.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0C1322] to-[#0A0F1C]">
+                        <FileText className="h-9 w-9 text-[#E2B15C]/40" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-1 flex-col p-5">
+                    <h3 className="line-clamp-2 font-[family-name:var(--font-fraunces)] text-[16px] font-semibold leading-snug text-[#E8EBF2] transition-colors group-hover:text-[#E2B15C]">
+                      {rp.title}
+                    </h3>
+                    {rp.excerpt && (
+                      <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-[#98A2B8]">
+                        {rp.excerpt}
+                      </p>
+                    )}
+                    <div className="mt-auto flex items-center gap-2 pt-4 text-xs text-[#525C70]">
+                      <Calendar className="h-3.5 w-3.5" />
+                      {fmt(rp.createdAt)}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       )}
