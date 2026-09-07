@@ -1,7 +1,5 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-node_modules
+# ─── Dependencies ────────────────────────────────────────
+node_modules/
 /.pnp
 .pnp.*
 .yarn/*
@@ -10,45 +8,88 @@ node_modules
 !.yarn/releases
 !.yarn/versions
 
-# testing
+# ─── Testing & Coverage ─────────────────────────────────
 /coverage
+*.lcov
 
-# next.js
+# ─── Next.js ────────────────────────────────────────────
 /.next/
 /out/
-
-# production
 /build
 
-# misc
-.DS_Store
-*.pem
+# ─── Environment Variables (NEVER commit secrets) ───────
+.env
+.env.*
+!.env.example
 
-# debug
+# ─── Database (SQLite local dev) ────────────────────────
+/db/*.db
+/db/*.db-journal
+*.sqlite
+*.sqlite3
+
+# ─── Debug & Logs ───────────────────────────────────────
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+bun-debug.log*
+*.log
+dev.log
+server.log
+dev.out.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# ─── Misc ───────────────────────────────────────────────
+.DS_Store
+*.pem
+Thumbs.db
 
-# vercel
-.vercel
-
-
-# typescript
+# ─── TypeScript ────────────────────────────────────────
 *.tsbuildinfo
 next-env.d.ts
+
+# ─── Vercel ────────────────────────────────────────────
+.vercel
+
+# ─── IDE / Editor ──────────────────────────────────────
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+*.swo
+*~
+
+# ─── OS ────────────────────────────────────────────────
+.DS_Store
+ehthumbs.db
+Desktop.ini
+
+# ─── Project-specific (sandbox/dev artifacts) ──────────
 local-*
 .claude
 .z-ai-config
-*.log
-dev.log
-dev.out.log
-test
-prompt
-
-server.log
-# Skills directory
 /skills/
+/upload/
+/tool-results/
+/download/
+download/
+tests/
+.zscripts/
+mini-services/
+
+# ─── Prisma generated client (regenerated on install) ──
+/prisma/migrations/dev.db*
+
+# Caddyfile (sandbox-specific deployment config)
+Caddyfile
+
+# Phase screenshots (dev artifacts)
+phase*.png
+review-*.png
+
+# Examples (reference code, not part of the app)
+/examples/
+
+# Mini-services scaffold
+/mini-services/

@@ -13,7 +13,7 @@ export interface BlogListPost {
   coverImage: string | null;
   category: string;
   author: string;
-  createdAt: string;
+  createdAt: string | Date;
 }
 
 interface BlogBrowserProps {
@@ -29,7 +29,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   General: 'bg-white/[0.06] text-[#C6CDDB] ring-white/10',
 };
 
-function fmt(d: string) {
+function fmt(d: string | Date) {
   return new Date(d).toLocaleDateString('en-IN', {
     day: 'numeric',
     month: 'short',
