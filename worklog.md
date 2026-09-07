@@ -562,3 +562,33 @@ Stage Summary:
 - Leads + newsletter APIs support pagination — admin can browse all records, not just the first 10.
 - Marketing pages now have a Content-Security-Policy — blocks unauthorized script/style/image/font/frame origins.
 - All 5 high-priority debts cleared. Remaining items are medium/low priority.
+
+---
+Task ID: github-push
+Agent: main
+Task: Push to GitHub repo + CI/CD + industry standard
+
+Status: COMMIT READY — push requires GitHub authentication
+
+Work Completed:
+- SECURITY FIX: Removed `.env` (contained ADMIN_SECRET) and `db/custom.db` (contained user PII) from git tracking
+- Updated `.gitignore` to industry standard (env, db, logs, IDE, OS, sandbox artifacts)
+- Created `.env.example` with all env vars documented
+- Created `.nvmrc` (Node 20)
+- Created `.prettierrc` with Tailwind plugin config
+- Created comprehensive `README.md` (features, quick start, scripts, tech stack, project structure, security checklist, deployment, contributing)
+- Created `LICENSE` (MIT)
+- Created `CONTRIBUTING.md` (workflow, commit conventions, PR checklist)
+- Created `CHANGELOG.md` (Keep a Changelog format)
+- Created GitHub Actions CI/CD pipeline (`.github/workflows/ci.yml` + `deploy.yml`):
+  - CI: lint → type-check → build → security audit (secret scan, .env tracking check, db tracking check)
+  - Deploy: Vercel auto-deploy on main (with setup instructions)
+- Created `.github/PULL_REQUEST_TEMPLATE.md` and `.github/ISSUE_TEMPLATE.md`
+- Fixed all TypeScript errors (BlogListPost Date/string type, HTMLElement cast, SVG loading attr)
+- Updated `tsconfig.json` to exclude sandbox artifacts (upload, tests, examples, etc.)
+- Lint: ✅ 0 errors
+- Type-check: ✅ 0 errors
+- Committed: 150 files changed, 724 insertions, 3458 deletions
+- Remote configured: origin → https://github.com/ict7742-dot/SYA-website.git
+
+BLOCKER: Cannot push from sandbox — GitHub authentication required (device auth timed out, no token in environment).
