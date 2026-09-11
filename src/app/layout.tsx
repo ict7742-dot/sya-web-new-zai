@@ -56,7 +56,10 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Systematic Yield Analysts — Angel One Authorized Partner & Stock Market Academy, Jaipur',
     description:
-      'Open a Demat account with zero delivery brokerage or join our expert-led stock market courses. 2400+ accounts guided. SEBI-regulated Angel One partner in Jaipur.',
+      'Open a Demat account with zero delivery brokerage or join our expert-led stock market courses. SEBI-regulated Angel One Authorized Partner in Jaipur.',
+    // NOTE: previously this description contained "2400+ accounts guided". That
+    // claim was invented and is removed per docs/PLACEHOLDER_INVENTORY.md §3
+    // (SEBI prohibits unverifiable claims on regulated marketing sites).
     siteName: 'Systematic Yield Analysts',
     type: 'website',
     locale: 'en_IN',
@@ -134,7 +137,11 @@ export default function RootLayout({
                     opens: '09:30',
                     closes: '18:30',
                   },
-                  aggregateRating: { '@type': 'AggregateRating', ratingValue: '4.8', reviewCount: '180', bestRating: '5' },
+                  // AggregateRating removed (Phase 6 / docs/PLACEHOLDER_INVENTORY.md §3):
+                  // the previous `4.8/180 reviews` block was fabricated and would have
+                  // triggered a Google manual penalty for review-snippet manipulation.
+                  // Re-enable ONLY when collecting real reviews from a verifiable source
+                  // (Google Business Profile, etc.) — and add `reviewAspect` per schema.org.
                   areaServed: { '@type': 'City', name: 'Jaipur' },
                   hasOfferCatalog: {
                     '@type': 'OfferCatalog',
