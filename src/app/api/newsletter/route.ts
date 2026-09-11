@@ -97,9 +97,16 @@ export async function GET(request: NextRequest) {
       });
 
       const headers = ['Email', 'Source', 'Active', 'Subscribed At'];
+      // CSV cell escaping with formula-injection defense (OWASP). See the
+      // matching comment in /api/leads/route.ts for the rationale. Phase 5
+      // will extract this into src/lib/csv.ts (safeCsvCell).
       const escape = (v: string | null | undefined) => {
         if (v == null) return '';
-        return `"${String(v).replace(/"/g, '""')}"`;
+        let s = String(v);
+        if (/^[=+\-@\t\r]/.test(s)) {
+          s = `'${s}`;
+        }
+        return `"${s.replace(/"/g, '""')}"`;
       };
 
       const rows = subs.map((s) =>

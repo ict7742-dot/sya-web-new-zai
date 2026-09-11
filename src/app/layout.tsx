@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Fraunces, Bebas_Neue, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
+import { safeJsonStringify } from "@/lib/utils";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -104,7 +105,7 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: safeJsonStringify({
               '@context': 'https://schema.org',
               '@graph': [
                 {

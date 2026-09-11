@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
   },
   // Catch unsafe patterns (double effects, deprecated lifecycles) in dev.
   reactStrictMode: true,
+  // Don't expose the Next.js banner in HTTP response headers.
+  // Default is `true` — every response used to carry `X-Powered-By: Next.js`,
+  // which is a free fingerprint for attackers scanning for vulnerable stacks.
+  poweredByHeader: false,
   // Allow the sandbox preview origin to request Next dev assets.
   allowedDevOrigins: ["*.space-z.ai"],
   images: {
@@ -34,9 +38,17 @@ const nextConfig: NextConfig = {
     // Marketing-page CSP: allow self for scripts/styles/images/fonts,
     // allow inline (needed for Next.js hydration + JSON-LD + styled
     // components), allow data: for SVG favicons, block everything else.
+    //
+    // NOTE on `'unsafe-eval'`: previously in production CSP. It's NOT needed
+    // by Next.js 16 production builds — only React Refresh in dev uses eval.
+    // We restrict it to dev so prod stays tight.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const scriptSrc = isDev
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+      : "script-src 'self' 'unsafe-inline'";
     const marketingCsp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      scriptSrc,
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' data: https:",

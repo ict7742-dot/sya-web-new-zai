@@ -54,11 +54,30 @@ export function getStoredUtm(): UtmData {
   return { ...EMPTY_UTM, landingPage: window.location.href.split('?')[0] };
 }
 
-/* ── Form abandonment — saves partial form data to localStorage ── */
+/* ── Form abandonment — saves partial form data to localStorage ──
+   PRIVACY: PII (name, phone, email, message) is only persisted when the
+   user has accepted the cookie consent banner. If consent is declined
+   (or not yet given), `saveAbandonment` is a no-op and `loadAbandonment`
+   clears any previously-stored data — so a declined user never has their
+   partial form data persisted to disk, and any pre-existing record from
+   a prior accepted-consent session is purged the moment they decline. */
 
 const ABANDON_KEY = 'sya_form_abandon';
+const CONSENT_KEY = 'sya_cookie_consent';
+
+/** Returns true iff the user has explicitly accepted cookie consent.
+ *  Returns false if declined, unknown, or localStorage is unavailable. */
+function hasConsent(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return localStorage.getItem(CONSENT_KEY) === 'accepted';
+  } catch {
+    return false;
+  }
+}
 
 export function saveAbandonment(data: Record<string, string>) {
+  if (!hasConsent()) return; // PII must not be persisted without consent
   try {
     localStorage.setItem(ABANDON_KEY, JSON.stringify({ ...data, savedAt: new Date().toISOString() }));
   } catch {
@@ -66,6 +85,8 @@ export function saveAbandonment(data: Record<string, string>) {
   }
 }
 
+/** Purge any stored abandonment data. Called on form submit (no longer
+ *  needed) OR when consent is changed from accepted to declined. */
 export function clearAbandonment() {
   try {
     localStorage.removeItem(ABANDON_KEY);
@@ -75,6 +96,13 @@ export function clearAbandonment() {
 }
 
 export function loadAbandonment(): Record<string, string> | null {
+  // Consent gate: if the user has declined (or never accepted), we should
+  // never surface previously-stored PII. Belt-and-braces: also clear any
+  // stale record so the storage footprint stays minimal.
+  if (!hasConsent()) {
+    clearAbandonment();
+    return null;
+  }
   try {
     const raw = localStorage.getItem(ABANDON_KEY);
     if (!raw) return null;

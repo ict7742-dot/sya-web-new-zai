@@ -156,9 +156,21 @@ export async function GET(request: NextRequest) {
         'Landing Page', 'Submitted At',
       ];
 
+      // CSV cell escaping with formula-injection defense (OWASP).
+      // 1. If the value starts with =, +, -, @, tab, or CR, prefix with a
+      //    single quote so Excel/Sheets treats it as text, not a formula.
+      //    (Otherwise a lead named `=cmd|"/c calc"!A1` could execute shell
+      //    commands when an admin opens the export.)
+      // 2. Wrap in double quotes and double any embedded double quotes.
+      // Phase 5 will extract this into src/lib/csv.ts (safeCsvCell) so the
+      // same logic is shared with /api/newsletter. For now it's inline.
       const escape = (v: string | null | undefined) => {
         if (v == null) return '';
-        return `"${String(v).replace(/"/g, '""')}"`;
+        let s = String(v);
+        if (/^[=+\-@\t\r]/.test(s)) {
+          s = `'${s}`;
+        }
+        return `"${s.replace(/"/g, '""')}"`;
       };
 
       const rows = leads.map((l) => [

@@ -75,6 +75,13 @@ export default function HomePage() {
     }
   );
   const [flashClass, setFlashClass] = useState('');
+  // VOL readout jitter — initialized to 0 so the server-rendered value matches
+  // the first client render (no hydration mismatch). A non-zero random jitter
+  // is applied AFTER mount via useEffect, and re-rolled every 5 s so the
+  // terminal readout stays "live" instead of frozen. Calling Math.random()
+  // directly inside the JSX (as the previous code did) produced React error
+  // #418 because the server render and client render got different values.
+  const [volJitter, setVolJitter] = useState(0);
   // Ticker state + price-flicker effect moved into the TickerBar section
   // component (Phase 9.2 extraction — src/components/landing/sections/TickerBar.tsx).
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -378,6 +385,12 @@ export default function HomePage() {
   const handleCookieConsent = useCallback((choice: 'accepted' | 'declined') => {
     setCookieConsent(choice);
     try { localStorage.setItem('sya_cookie_consent', choice); } catch { /* ignore */ }
+    // PRIVACY: when the user declines, purge any partial-form PII that may
+    // have been saved during a previous accepted-consent session. This
+    // makes the decline action immediate — not "we'll stop saving new
+    // data, but the old data lingers". `saveAbandonment` also refuses to
+    // write while consent is declined, so the two stay in sync.
+    if (choice === 'declined') clearAbandonment();
   }, []);
 
   /* ── Restore abandoned form data ── */
@@ -417,6 +430,19 @@ export default function HomePage() {
 
   /* ── Ticker price flicker ──
      Phase 9.2: moved into the TickerBar section component. */
+
+  /* ── VOL readout jitter — re-roll after mount, then every 5 s. ──
+      This avoids the Math.random()-in-JSX hydration bug (server vs client
+      would produce different values → React error #418) by keeping the
+      initial render deterministic (volJitter starts at 0) and only
+      introducing randomness in a client-only effect. */
+  useEffect(() => {
+    if (reducedMotion.current) return;
+    const roll = () => setVolJitter(Math.random() * 8);
+    roll();
+    const iv = setInterval(roll, 5000);
+    return () => clearInterval(iv);
+  }, []);
 
   /* ── Escape key for modal ── */
   useEffect(() => {
@@ -831,7 +857,7 @@ export default function HomePage() {
 
                   {/* Terminal footer */}
                   <div className="flex items-center justify-between border-t border-white/[0.07] px-5 py-3 text-[11.5px] text-mist">
-                    <span className="tnum">VOL {(st.volM + Math.random() * 8).toFixed(1)}M</span>
+                    <span className="tnum">VOL {(st.volM + volJitter).toFixed(1)}M</span>
                     <span className="flex items-center gap-1.5">
                       <span className={`w-1.5 h-1.5 rounded-full ${above ? 'bg-up' : 'bg-down'} inline-block`} />
                       {above ? 'Above 20-SMA · Bullish bias' : 'Below 20-SMA · Cautious'}

@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { db } from '@/lib/db';
+import { safeJsonStringify } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight, FileText, Sparkles, Eye } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
 import { ReadingProgress, ShareButtons, ActiveTocHighlighter } from '@/components/blog-interactions';
@@ -325,7 +326,7 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonStringify(jsonLd) }}
       />
     </article>
   );
