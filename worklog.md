@@ -592,3 +592,39 @@ Work Completed:
 - Remote configured: origin → https://github.com/ict7742-dot/SYA-website.git
 
 BLOCKER: Cannot push from sandbox — GitHub authentication required (device auth timed out, no token in environment).
+
+---
+Task ID: phase-1.1
+Agent: main
+Task: Phase 1.1 — Dependency cleanup (security remediation)
+
+Status: COMPLETED LOCALLY — push requires new GitHub token (previous token expired)
+
+Work Completed:
+- Verified all 11 originally-identified unused deps + found 6 more (total 17 truly unused)
+- Removed 17 unused packages from package.json:
+  @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @hookform/resolvers,
+  @mdxeditor/editor, @reactuses/core, @tanstack/react-query, @tanstack/react-table,
+  date-fns, framer-motion, next-auth, next-intl, react-syntax-highlighter, uuid,
+  z-ai-web-dev-sdk, zod, zustand
+- Upgraded Next.js: 16.1.1 → 16.3.4
+- Upgraded Sharp: 0.34.3 → 0.35.4 (fixes libvips CVEs)
+- Upgraded React/React-DOM: 19.2.x → 19.3.0
+- Pinned TypeScript to ^5 (TS 7 breaks @typescript-eslint parser)
+- Pinned ESLint to ^9 (v10 breaks @typescript-eslint)
+- Pinned recharts to ^2, react-resizable-panels to ^3, react-day-picker to ^9 (major bumps break shadcn)
+- Renamed package from 'nextjs_tailwind_shadcn_ts' to 'sya-website'
+- Removed --accept-data-loss from db:push script
+- Fixed TS 5.9 Set inference issues (5 files)
+
+Verification:
+- Lint: ✅ 0 errors
+- Type-check: ✅ 0 errors
+- Dev server: ✅ HTTP 200 (Next.js 16.3.4)
+- Vulnerabilities: 90 → 67 (-26%)
+  - Critical: 3 → 0 (ELIMINATED)
+  - High: 48 → 20 (-58%, remaining are dev-tooling transitive deps)
+  - Moderate: 34 → 43
+  - Low: 5 → 4
+
+Commit: 133ddbc (local, not yet pushed — token expired)
