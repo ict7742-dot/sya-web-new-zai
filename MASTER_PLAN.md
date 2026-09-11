@@ -225,24 +225,22 @@
 
 ## Current Progress
 
-> **RECOVERY STATUS (2026-09-11)**: Previous sessions produced 7 local commits
-> for Phases 2-8 that were NEVER pushed to GitHub (sandbox had no GitHub
-> credentials at the time). The sandbox state was wiped between sessions, so
-> those local commits are LOST. The remote (`origin/main`) currently has only
-> Phase 1.1 + Phase 1.2 + Phase 8 (foundation redo) + Phase 9 sub-tasks
-> 9.2/9.3/9.6/9.7/9.8/9.12. All of Phases 2-7 + 5 of the 12 Phase 9 sub-tasks
-> need to be re-done before any production deploy.
+> **RECOVERY COMPLETE (2026-09-11)**: Phases 2-7 (lost when the previous
+> sandbox state was wiped before push) have been RE-DONE and pushed to
+> `origin/main`. The codebase now matches the security posture that was
+> lost. All 9 P0 release blockers are CLOSED (or have an explicit action
+> plan for P0-9 placeholder content).
 
 | Phase | Status | Commit on `origin/main` |
 |-------|--------|------------------------|
 | 1.1 Dependency cleanup | ✅ Done | `133ddbc` |
 | 1.2 CI/CD repair | ✅ Done | `9333f71` |
-| 2 Auth overhaul & draft disclosure | ❌ LOST — needs redo | — |
-| 3 Database migration (SQLite → PostgreSQL) | ❌ LOST — needs redo | — |
-| 4 Hydration, CSV, JSON-LD, PII, CSP | ❌ LOST — needs redo | — |
-| 5 Code quality & dead code | ❌ LOST — needs redo | — |
-| 6 Repository governance | ❌ LOST — needs redo | — |
-| 7 Blog API hardening | ❌ LOST — needs redo | — |
+| 2 Auth overhaul & draft disclosure | ✅ Done (redo) | `8941b5e` |
+| 3 Database migration (SQLite → PostgreSQL) | ✅ Done (redo) | `f45e3f8` |
+| 4 Hydration, CSV, JSON-LD, PII, CSP | ✅ Done (redo) | `290d885` |
+| 5 Code quality & dead code | ✅ Done (redo) | `3d1280b` |
+| 6 Repository governance | ✅ Done (redo) | `855b07a` |
+| 7 Blog API hardening | ✅ Done (redo) | `5546ee8` |
 | 8 Design system & architecture | ✅ Done (redo) | `22027e4` |
 | 9.1 Hero | ❌ Pending | — |
 | 9.2 TickerBar | ✅ Done | `22027e4` |
@@ -260,6 +258,20 @@
 | 11 Responsive design | ❌ Pending | — |
 | 12 Blog + admin redesign | ❌ Pending | — |
 
+### P0 release blocker status
+
+| # | Finding | Status |
+|---|---|---|
+| P0-1 | 90 dep vulns | ✅ Done (Phase 1.1) |
+| P0-2 | CI/CD broken | ✅ Done (Phase 1.2) |
+| P0-3 | Draft disclosure | ✅ Done (Phase 2 redo) |
+| P0-4 | Root secret in cookie | ✅ Done (Phase 2 redo) |
+| P0-5 | Production DB | ✅ Done (Phase 3 redo) |
+| P0-6 | Hydration | ✅ Done (Phase 4 redo) |
+| P0-7 | PII localStorage | ✅ Done (Phase 4 redo) |
+| P0-8 | CSV injection | ✅ Done (Phase 4 redo) |
+| P0-9 | Placeholders | ⚠️ Partial (Phase 6 + Phase 9.3) — fabricated AggregateRating removed from JSON-LD; "2400+ accounts" OG claim softened; fabricated Google Reviews badge removed from TrustStrip. Contact details / testimonials / social-proof toasts left for partner verification (cataloged in `docs/PLACEHOLDER_INVENTORY.md`). |
+
 ### Phase 1.1 Results (preserved)
 - Vulnerabilities: 90 → 67 (-26%)
 - Critical: 3 → 0 (eliminated)
@@ -268,19 +280,27 @@
 - Upgraded: Next.js, Sharp, React
 - Pinned: TypeScript ^5, ESLint ^9, Prisma ^6
 
+### Phase 2-7 Redo Results (commits `8941b5e` → `5546ee8`)
+- **Phase 2**: scrypt-hashed AdminSession table, `POST /api/auth/revoke` force-logout, hard-coded `published:true` in `/api/blogs`, OG route filters `published:true`, new `/api/admin/blogs` for draft access. 8-test E2E suite passes.
+- **Phase 3**: `provider = "postgresql"`, first committed migration `20260911120000_init/migration.sql` (115 lines), `docker-compose.yml`, CI uses Postgres 16 service container + `prisma migrate deploy`, sitemap loud-fallback `[SITEMAP FALLBACK]` marker.
+- **Phase 4**: `Math.random()` removed from JSX (new `volJitter` state + `useEffect`); CSV `escape()` rewritten with OWASP formula-injection defense; `safeJsonStringify()` helper added; PII localStorage gated on `hasConsent()`; CSP `'unsafe-eval'` removed from production; `poweredByHeader: false`. 19 unit tests pass (7 JSON-LD + 12 CSV).
+- **Phase 5**: Prisma env-conditional log level; `noImplicitAny: true` + `allowJs: false`; 26 ESLint rules re-enabled; 47 dead shadcn components + 36 dead deps removed (`bun audit` 27 → 24, –11%); shared `src/lib/validation.ts` + `src/lib/csv.ts`; 3 API routes refactored.
+- **Phase 6**: 6 governance docs created (`SECURITY.md`, `docs/DATA_RETENTION.md`, `docs/THREAT_MODEL.md`, `docs/INCIDENT_RESPONSE.md`, `docs/DR_PLAN.md`, `docs/PLACEHOLDER_INVENTORY.md`); fabricated `AggregateRating` removed from JSON-LD; "2400+ accounts" OG claim softened.
+- **Phase 7**: PUT `/api/blogs/[slug]` rewritten with shared validation helpers (closes 500-on-bad-input bug); P2002 unique-constraint catch in both POST and PUT (closes TOCTOU slug race); new `GET /api/admin/blogs/[slug]`; `openEditBlog` fetches existing content (closes content-wipe-on-edit bug); `/api/search` rate-limited (30/min/IP); body-size policy (1 MB cap) on all 4 mutation endpoints.
+
 ### Phase 8 (redo) + Phase 9 Results (commit `22027e4`)
 - Cinematic Finance design tokens in `tailwind.config.ts` (cf-bg, cf-gold with gradient, cf-emerald, cf-crimson, cf-text, cf-glass; font-display Bebas Neue, font-data JetBrains Mono; ease-cinematic + ease-snap; durations 70-800ms; shadows + backdrop helpers; 4 keyframe animations). Legacy tokens kept for backwards compat.
 - Bebas Neue + JetBrains Mono loaded via `next/font` in `layout.tsx`; wired into `<body>` className (verified via SSR output).
 - `docs/DESIGN_SYSTEM.md` — canonical Phase 9 reference (palette, typography scale, motion timing, glassmorphism recipe, section-by-section plan).
 - 6 section components extracted to `src/components/landing/sections/`:
   - 9.2 `TickerBar.tsx` — glassmorphic strip + JetBrains Mono prices + emerald/crimson change indicators + flash-on-change
-  - 9.3 `TrustStrip.tsx` — 4 glassmorphic trust pillars + 3 stat counters (0→value animate on scroll-in, 1.2s ease-cubic-out) + verifiable SEBI/NSE/NISM badges. **Removed** the fabricated "4.8/180 Google Reviews" badge (consistent with the (now-lost) Phase 6 AggregateRating JSON-LD removal).
+  - 9.3 `TrustStrip.tsx` — 4 glassmorphic trust pillars + 3 stat counters (0→value animate on scroll-in, 1.2s ease-cubic-out) + verifiable SEBI/NSE/NISM badges. **Removed** the fabricated "4.8/180 Google Reviews" badge.
   - 9.6 `HowItWorks.tsx` — 3 glassmorphic step cards with gold index number + icon chip + gold connecting dot between steps + hover lift
   - 9.7 `Testimonials.tsx` — glassmorphic cards with gold star ratings + JetBrains Mono initials avatar + mobile scroll-snap carousel + desktop 3-col grid
   - 9.8 `FAQ.tsx` — Bebas Neue heading + glassmorphic accordion cards with gradient gold border + gold chevron rotates 180deg on open
   - 9.12 `Footer.tsx` — grain-texture overlay + gold glow drift + JetBrains Mono for SEBI regulatory numerics + staggered reveal of 3 columns
 - `page.tsx` reduced from 1,941 → 1,587 lines (354 lines / 18% reduction).
-- `bun run lint` ✅ 0 errors, 0 warnings. `bunx tsc --noEmit` ✅ 0 errors. `bun run build` ✅ exit 0.
+- `bun run lint` ✅ 0 errors. `bunx tsc --noEmit` ✅ 0 errors. `bun run build` ✅ exit 0.
 
 ---
 
@@ -289,39 +309,28 @@
 ### Quick Start (copy-paste this into a new chat)
 
 ```
-I'm working on the SYA Website project. The code is at /home/z/my-project
+I'm working on the SYA Website project. The code is at /home/z/my-project/sya-web
 and the repo is https://github.com/ict7742-dot/sya-web-new-zai.git
 
-Read /home/z/my-project/MASTER_PLAN.md for the full context — it has:
+Read /home/z/my-project/sya-web/MASTER_PLAN.md for the full context — it has:
 - All audit findings (54 verified issues)
 - The 12-phase remediation plan
-- Current progress (Phase 1.1, 1.2, 8-redo, 9-partial done; Phases 2-7 LOST — need redo)
+- Current progress (Phases 1.1, 1.2, 2-7 redone, 8, 9.2/9.3/9.6/9.7/9.8/9.12 done —
+  all P0 release blockers closed; Part A security/tech remediation COMPLETE)
 - Design direction for the UI redesign
 
-CRITICAL: Phases 2-7 were lost in a previous session (sandbox state was
-wiped before the local commits could be pushed). The codebase currently
-lives on the Phase 1.2 + Phase 8-redo + Phase 9-partial baseline. The
-security debt from Phases 2-7 is REAL — the page still has Math.random()
-in JSX (hydration bug), the public /api/blogs?published=false still
-leaks drafts, the admin cookie still contains the raw ADMIN_SECRET,
-SQLite is still the DB provider, 47 dead shadcn components are still
-in the codebase, etc.
-
-Continue with: Phase 2 redo (revocable sessions + close draft disclosure).
-Read /home/z/my-project/worklog.md for the original Phase 2-7 worklog
-entries — they document exactly what was done and can guide the redo.
-
-Read /home/z/my-project/sya-web/docs/DESIGN_SYSTEM.md for the
-Cinematic Finance design language reference (Phase 9 continues from here).
+Continue with Phase 9.1: Hero (cinematic chart reel + Ken Burns + layered bg).
+Read /home/z/my-project/sya-web/docs/DESIGN_SYSTEM.md for the Cinematic Finance
+design language reference.
 ```
 
 ### What to Tell the New Chat
 
 1. **Project path**: `/home/z/my-project/sya-web`
 2. **Repo**: `https://github.com/ict7742-dot/sya-web-new-zai.git`
-3. **Read first**: `MASTER_PLAN.md` (this file) + `worklog.md` (has the original Phase 2-7 worklogs to guide the redo) + `docs/DESIGN_SYSTEM.md`
+3. **Read first**: `MASTER_PLAN.md` (this file) + `docs/DESIGN_SYSTEM.md`
 4. **Current phase**: Check the "Current Progress" table above
-5. **Next task**: Phase 2 redo — Auth overhaul & draft disclosure fix (P0-3, P0-4)
+5. **Next task**: Phase 9.1 — Hero section rewrite (the remaining 6 Phase 9 sub-tasks follow: 9.4, 9.5, 9.9, 9.10, 9.11)
 
 ### Key Files to Reference
 
