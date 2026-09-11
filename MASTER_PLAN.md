@@ -225,20 +225,62 @@
 
 ## Current Progress
 
-| Phase | Status | Commit |
-|-------|--------|--------|
-| 1.1 Dependency cleanup | ✅ Done | `133ddbc` |
-| 1.2 CI/CD repair | 🔲 In progress | — |
-| 2-7 Security/Tech | 🔲 Pending | — |
-| 8-12 Redesign | 🔲 Pending | — |
+> **RECOVERY STATUS (2026-09-11)**: Previous sessions produced 7 local commits
+> for Phases 2-8 that were NEVER pushed to GitHub (sandbox had no GitHub
+> credentials at the time). The sandbox state was wiped between sessions, so
+> those local commits are LOST. The remote (`origin/main`) currently has only
+> Phase 1.1 + Phase 1.2 + Phase 8 (foundation redo) + Phase 9 sub-tasks
+> 9.2/9.3/9.6/9.7/9.8/9.12. All of Phases 2-7 + 5 of the 12 Phase 9 sub-tasks
+> need to be re-done before any production deploy.
 
-### Phase 1.1 Results
+| Phase | Status | Commit on `origin/main` |
+|-------|--------|------------------------|
+| 1.1 Dependency cleanup | ✅ Done | `133ddbc` |
+| 1.2 CI/CD repair | ✅ Done | `9333f71` |
+| 2 Auth overhaul & draft disclosure | ❌ LOST — needs redo | — |
+| 3 Database migration (SQLite → PostgreSQL) | ❌ LOST — needs redo | — |
+| 4 Hydration, CSV, JSON-LD, PII, CSP | ❌ LOST — needs redo | — |
+| 5 Code quality & dead code | ❌ LOST — needs redo | — |
+| 6 Repository governance | ❌ LOST — needs redo | — |
+| 7 Blog API hardening | ❌ LOST — needs redo | — |
+| 8 Design system & architecture | ✅ Done (redo) | `22027e4` |
+| 9.1 Hero | ❌ Pending | — |
+| 9.2 TickerBar | ✅ Done | `22027e4` |
+| 9.3 TrustStrip + stats | ✅ Done | `22027e4` |
+| 9.4 BrokingServices | ❌ Pending | — |
+| 9.5 Courses (3D flip cards) | ❌ Pending | — |
+| 9.6 HowItWorks | ✅ Done | `22027e4` |
+| 9.7 Testimonials | ✅ Done | `22027e4` |
+| 9.8 FAQ | ✅ Done | `22027e4` |
+| 9.9 BlogPreview | ❌ Pending | — |
+| 9.10 ContactForm | ❌ Pending | — |
+| 9.11 StickyCTA | ❌ Pending | — |
+| 9.12 Footer | ✅ Done | `22027e4` |
+| 10 Animation system | ❌ Pending | — |
+| 11 Responsive design | ❌ Pending | — |
+| 12 Blog + admin redesign | ❌ Pending | — |
+
+### Phase 1.1 Results (preserved)
 - Vulnerabilities: 90 → 67 (-26%)
 - Critical: 3 → 0 (eliminated)
 - High: 48 → 20 (-58%)
 - Removed: 17 unused packages
 - Upgraded: Next.js, Sharp, React
 - Pinned: TypeScript ^5, ESLint ^9, Prisma ^6
+
+### Phase 8 (redo) + Phase 9 Results (commit `22027e4`)
+- Cinematic Finance design tokens in `tailwind.config.ts` (cf-bg, cf-gold with gradient, cf-emerald, cf-crimson, cf-text, cf-glass; font-display Bebas Neue, font-data JetBrains Mono; ease-cinematic + ease-snap; durations 70-800ms; shadows + backdrop helpers; 4 keyframe animations). Legacy tokens kept for backwards compat.
+- Bebas Neue + JetBrains Mono loaded via `next/font` in `layout.tsx`; wired into `<body>` className (verified via SSR output).
+- `docs/DESIGN_SYSTEM.md` — canonical Phase 9 reference (palette, typography scale, motion timing, glassmorphism recipe, section-by-section plan).
+- 6 section components extracted to `src/components/landing/sections/`:
+  - 9.2 `TickerBar.tsx` — glassmorphic strip + JetBrains Mono prices + emerald/crimson change indicators + flash-on-change
+  - 9.3 `TrustStrip.tsx` — 4 glassmorphic trust pillars + 3 stat counters (0→value animate on scroll-in, 1.2s ease-cubic-out) + verifiable SEBI/NSE/NISM badges. **Removed** the fabricated "4.8/180 Google Reviews" badge (consistent with the (now-lost) Phase 6 AggregateRating JSON-LD removal).
+  - 9.6 `HowItWorks.tsx` — 3 glassmorphic step cards with gold index number + icon chip + gold connecting dot between steps + hover lift
+  - 9.7 `Testimonials.tsx` — glassmorphic cards with gold star ratings + JetBrains Mono initials avatar + mobile scroll-snap carousel + desktop 3-col grid
+  - 9.8 `FAQ.tsx` — Bebas Neue heading + glassmorphic accordion cards with gradient gold border + gold chevron rotates 180deg on open
+  - 9.12 `Footer.tsx` — grain-texture overlay + gold glow drift + JetBrains Mono for SEBI regulatory numerics + staggered reveal of 3 columns
+- `page.tsx` reduced from 1,941 → 1,587 lines (354 lines / 18% reduction).
+- `bun run lint` ✅ 0 errors, 0 warnings. `bunx tsc --noEmit` ✅ 0 errors. `bun run build` ✅ exit 0.
 
 ---
 
@@ -253,21 +295,33 @@ and the repo is https://github.com/ict7742-dot/sya-web-new-zai.git
 Read /home/z/my-project/MASTER_PLAN.md for the full context — it has:
 - All audit findings (54 verified issues)
 - The 12-phase remediation plan
-- Current progress (Phase 1.1 done, Phase 1.2 next)
+- Current progress (Phase 1.1, 1.2, 8-redo, 9-partial done; Phases 2-7 LOST — need redo)
 - Design direction for the UI redesign
 
-Continue with Phase 1.2: CI/CD repair.
+CRITICAL: Phases 2-7 were lost in a previous session (sandbox state was
+wiped before the local commits could be pushed). The codebase currently
+lives on the Phase 1.2 + Phase 8-redo + Phase 9-partial baseline. The
+security debt from Phases 2-7 is REAL — the page still has Math.random()
+in JSX (hydration bug), the public /api/blogs?published=false still
+leaks drafts, the admin cookie still contains the raw ADMIN_SECRET,
+SQLite is still the DB provider, 47 dead shadcn components are still
+in the codebase, etc.
 
-Read /home/z/my-project/worklog.md for detailed work logs from previous sessions.
+Continue with: Phase 2 redo (revocable sessions + close draft disclosure).
+Read /home/z/my-project/worklog.md for the original Phase 2-7 worklog
+entries — they document exactly what was done and can guide the redo.
+
+Read /home/z/my-project/sya-web/docs/DESIGN_SYSTEM.md for the
+Cinematic Finance design language reference (Phase 9 continues from here).
 ```
 
 ### What to Tell the New Chat
 
-1. **Project path**: `/home/z/my-project`
+1. **Project path**: `/home/z/my-project/sya-web`
 2. **Repo**: `https://github.com/ict7742-dot/sya-web-new-zai.git`
-3. **Read first**: `MASTER_PLAN.md` (this file) + `worklog.md`
+3. **Read first**: `MASTER_PLAN.md` (this file) + `worklog.md` (has the original Phase 2-7 worklogs to guide the redo) + `docs/DESIGN_SYSTEM.md`
 4. **Current phase**: Check the "Current Progress" table above
-5. **Next task**: Phase 1.2 — CI/CD repair
+5. **Next task**: Phase 2 redo — Auth overhaul & draft disclosure fix (P0-3, P0-4)
 
 ### Key Files to Reference
 
