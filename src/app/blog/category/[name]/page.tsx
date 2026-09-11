@@ -72,7 +72,7 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
   if (posts.length === 0) notFound();
 
   const mappedPosts: BlogListPost[] = posts;
-  const categories = Array.from(new Set(posts.map((p) => p.category)));
+  const categories = Array.from(new Set(posts.map((p) => p.category))) as string[];
   const meta = CATEGORY_META[name] ?? CATEGORY_META.General;
 
   return (

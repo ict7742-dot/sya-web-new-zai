@@ -37,7 +37,7 @@ export default async function BlogIndexPage() {
     },
   });
 
-  const categories = Array.from(new Set(posts.map((p) => p.category)));
+  const categories = Array.from(new Set(posts.map((p) => p.category))) as string[];
 
   return (
     <main className="min-h-screen bg-[#070B14] text-[#E8EBF2]">

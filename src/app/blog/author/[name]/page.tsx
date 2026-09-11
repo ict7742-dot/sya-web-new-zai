@@ -60,7 +60,7 @@ export default async function AuthorPage({ params }: { params: Promise<Params> }
   if (posts.length === 0) notFound();
 
   const mappedPosts: BlogListPost[] = posts;
-  const categories = Array.from(new Set(posts.map((p) => p.category)));
+  const categories = Array.from(new Set(posts.map((p) => p.category))) as string[];
   const bio = AUTHOR_BIOS[name] ?? 'Contributor at Systematic Yield Analysts.';
   const initials = name
     .split(' ')

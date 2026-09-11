@@ -34,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     // Category pages — one URL per distinct category.
-    const categories = Array.from(new Set(posts.map((p) => p.category)));
+    const categories = Array.from(new Set(posts.map((p) => p.category))) as string[];
     const categoryEntries: MetadataRoute.Sitemap = categories.map((category) => ({
       url: `${baseUrl}/blog/category/${category.toLowerCase().replace(/\s+/g, '-')}`,
       lastModified: new Date(),
@@ -43,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
 
     // Author pages — one URL per distinct author.
-    const authors = Array.from(new Set(posts.map((p) => p.author)));
+    const authors = Array.from(new Set(posts.map((p) => p.author))) as string[];
     const authorEntries: MetadataRoute.Sitemap = authors.map((author) => ({
       url: `${baseUrl}/blog/author/${author.toLowerCase().replace(/\s+/g, '-')}`,
       lastModified: new Date(),
