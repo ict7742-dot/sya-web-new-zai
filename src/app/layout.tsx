@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces } from "next/font/google";
+import { Inter, Fraunces, Bebas_Neue, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 
@@ -15,6 +15,21 @@ const fraunces = Fraunces({
   display: "swap",
   style: ["normal", "italic"],
   weight: ["300", "400", "500", "600", "700"],
+});
+
+// Cinematic Finance typography (Phase 8)
+const bebas = Bebas_Neue({
+  variable: "--font-bebas",
+  subsets: ["latin"],
+  display: "swap",
+  weight: "400",
+});
+
+const jetbrains = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -83,7 +98,7 @@ export default function RootLayout({
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${fraunces.variable} font-sans antialiased`}
+        className={`${inter.variable} ${fraunces.variable} ${bebas.variable} ${jetbrains.variable} font-sans antialiased`}
       >
         {/* JSON-LD Structured Data */}
         <script

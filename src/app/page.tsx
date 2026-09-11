@@ -34,6 +34,12 @@ import { SearchTrigger } from '@/components/search-trigger';
 import { LazySection } from '@/components/landing/lazy-section';
 import { ToastItem, type ToastData } from '@/components/landing/toast-item';
 import { ChartSVG } from '@/components/landing/chart-svg';
+import { FAQ } from '@/components/landing/sections/FAQ';
+import { Footer } from '@/components/landing/sections/Footer';
+import { HowItWorks } from '@/components/landing/sections/HowItWorks';
+import { TrustStrip } from '@/components/landing/sections/TrustStrip';
+import { Testimonials } from '@/components/landing/sections/Testimonials';
+import { TickerBar } from '@/components/landing/sections/TickerBar';
 import {
   captureUtm,
   getStoredUtm,
@@ -41,9 +47,9 @@ import {
   clearAbandonment,
   loadAbandonment,
   SYMBOLS,
-  INITIAL_TICKERS,
+  // INITIAL_TICKERS + TickerItem type moved into the TickerBar section
+  // component (Phase 9.2 extraction).
   TESTIMONIALS,
-  FAQS,
   SOCIAL_PROOFS,
   CURRICULUM,
   LEGAL,
@@ -51,7 +57,7 @@ import {
   type Candle,
   type SymbolData,
   type SeriesData,
-  type TickerItem,
+  // TickerItem moved into the TickerBar section component (Phase 9.2).
 } from '@/lib/landing-data';
 import { mulberry32, inr, genSeries } from '@/lib/chart-utils';
 
@@ -69,10 +75,8 @@ export default function HomePage() {
     }
   );
   const [flashClass, setFlashClass] = useState('');
-  const [tickers, setTickers] = useState<TickerItem[]>(
-    () => INITIAL_TICKERS.map((t) => ({ ...t }))
-  );
-  const [tickerFlashIdx, setTickerFlashIdx] = useState<Set<number>>(new Set());
+  // Ticker state + price-flicker effect moved into the TickerBar section
+  // component (Phase 9.2 extraction — src/components/landing/sections/TickerBar.tsx).
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submitterName, setSubmitterName] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -82,7 +86,6 @@ export default function HomePage() {
   const [modalKey, setModalKey] = useState('privacy');
   const [toasts, setToasts] = useState<{ id: number; msg: string; ok: boolean }[]>([]);
   const [selectFlash, setSelectFlash] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [showMobileCta, setShowMobileCta] = useState(false);
@@ -353,35 +356,11 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
-  /* ── Counter animation ── */
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          const el = e.target as HTMLElement;
-          const count = parseInt(el.dataset.count || '0', 10);
-          observer.unobserve(el);
-          if (reducedMotion.current) {
-            el.textContent = count.toLocaleString('en-IN');
-            return;
-          }
-          const t0 = performance.now();
-          const dur = 1400;
-          const step = (t: number) => {
-            const p = Math.min(1, (t - t0) / dur);
-            const eased = 1 - Math.pow(1 - p, 3);
-            el.textContent = Math.round(count * eased).toLocaleString('en-IN');
-            if (p < 1) requestAnimationFrame(step);
-          };
-          requestAnimationFrame(step);
-        });
-      },
-      { threshold: 0.5 }
-    );
-    document.querySelectorAll('[data-count]').forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
-  }, []);
+  /* ── Counter animation ──
+     Phase 9.3: moved into the TrustStrip section component (it has its own
+     IntersectionObserver scoped to its own [data-count] elements). This
+     global observer is no longer needed — there are no other [data-count]
+     elements on the page outside TrustStrip. */
 
   /* ── UTM capture on mount ── */
   useEffect(() => {
@@ -436,29 +415,8 @@ export default function HomePage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, [trackFormInput]);
 
-  /* ── Ticker price flicker ── */
-  useEffect(() => {
-    if (reducedMotion.current) return;
-    const iv = setInterval(() => {
-      setTickers((prev) => {
-        const next = [...prev];
-        const flashSet = new Set<number>();
-        for (let k = 0; k < 3; k++) {
-          const i = Math.floor(Math.random() * next.length);
-          const t = { ...next[i] };
-          const old = t.price;
-          t.price = t.price * (1 + (Math.random() - 0.5) * 0.0035);
-          t.change += ((t.price - old) / old) * 100;
-          next[i] = t;
-          flashSet.add(i);
-        }
-        setTickerFlashIdx(flashSet);
-        return next;
-      });
-      setTimeout(() => setTickerFlashIdx(new Set()), 420);
-    }, 2200);
-    return () => clearInterval(iv);
-  }, []);
+  /* ── Ticker price flicker ──
+     Phase 9.2: moved into the TickerBar section component. */
 
   /* ── Escape key for modal ── */
   useEffect(() => {
@@ -640,26 +598,7 @@ export default function HomePage() {
     st.candles.slice(-20).reduce((a, k) => a + k.c, 0) / 20;
   const above = lastCandle.c >= sma;
 
-  /* ── Ticker HTML ── */
-  const tkHTML = tickers.map((t, i) => (
-    <span
-      key={i}
-      className="tk flex items-center gap-2 text-[12px] whitespace-nowrap"
-      data-tk={i}
-    >
-      <span className="text-white/60 font-medium">{t.name}</span>
-      <span
-        className={`tk-px tnum text-white/90 ${tickerFlashIdx.has(i) ? 'tk-flash' : ''}`}
-      >
-        {inr(t.price)}
-      </span>
-      <span
-        className={`tnum text-[11px] ${t.change >= 0 ? 'text-up' : 'text-down'}`}
-      >
-        {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change).toFixed(2)}%
-      </span>
-    </span>
-  ));
+  // tkHTML removed — TickerBar renders its own JSX from the local tickers state.
 
   const navLinks = ['home', 'demat', 'courses', 'howitworks', 'testimonials', 'faq', 'about', 'blog', 'contact'];
   const navLabels: Record<string, string> = {
@@ -682,15 +621,11 @@ export default function HomePage() {
       <a href="#main-content" className="skip-link">Skip to main content</a>
       <div className="scroll-progress-bar" style={{ transform: `scaleX(${scrollProgress})` }} role="progressbar" aria-valuenow={Math.round(scrollProgress * 100)} aria-valuemin={0} aria-valuemax={100} aria-label="Page scroll progress" />
 
-      {/* ══════════ LIVE INDEX TICKER ══════════ */}
-      <div className="border-b border-white/[0.06] bg-ink2">
-        <div className="ticker-wrap overflow-hidden">
-          <div className="ticker-track flex w-max items-center py-2">
-            {tkHTML}
-            {tkHTML}
-          </div>
-        </div>
-      </div>
+      {/* ══════════ LIVE INDEX TICKER ══════════
+          Phase 9.2: extracted to src/components/landing/sections/TickerBar.tsx
+          (glassmorphic strip + JetBrains Mono prices + emerald/crimson change
+          indicators + flash-on-price-change animation). */}
+      <TickerBar />
 
       {/* ══════════ STICKY NAV ══════════ */}
       <header
@@ -911,54 +846,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ══════════ TRUST & STATS STRIP ══════════ */}
-        <div className="border-y border-white/[0.08]">
-          <div className="wrap !px-0 md:!px-8">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-white/[0.08]">
-              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal">
-                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><BadgeCheck className="w-[18px] h-[18px]" /></span>
-                <span><span className="block text-[13.5px] font-semibold leading-snug">Authorized Angel One Partner</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">Regulated broking ecosystem, end to end</span></span>
-              </div>
-              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d1">
-                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><GraduationCap className="w-[18px] h-[18px]" /></span>
-                <span><span className="block text-[13.5px] font-semibold leading-snug">Expert Mentorship</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">NISM-certified mentors, live market sessions</span></span>
-              </div>
-              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d2">
-                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><Cpu className="w-[18px] h-[18px]" /></span>
-                <span><span className="block text-[13.5px] font-semibold leading-snug">Data-Driven Quant Strategies</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">Backtested models — never hot tips</span></span>
-              </div>
-              <div className="bg-ink px-6 py-7 flex items-start gap-4 reveal d3">
-                <span className="w-10 h-10 shrink-0 rounded-md border border-gold/25 text-gold flex items-center justify-center"><Headphones className="w-[18px] h-[18px]" /></span>
-                <span><span className="block text-[13.5px] font-semibold leading-snug">Dedicated Support</span><span className="block text-[12px] text-mist mt-1 leading-relaxed">One point of contact — KYC to strategy</span></span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ══════════ GOOGLE REVIEWS BADGE ══════════ */}
-        <div className="border-b border-white/[0.08]">
-          <div className="wrap py-6 flex flex-wrap items-center justify-center gap-6 reveal">
-            <div className="google-badge">
-              <svg className="google-badge-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="google-badge-rating">4.8</span>
-                  <div className="google-badge-stars">
-                    {[0,1,2,3,4].map((si) => (
-                      <Star key={si} style={{ width: 14, height: 14, fill: '#E2B15C', color: '#E2B15C' }} />
-                    ))}
-                  </div>
-                </div>
-                <p className="google-badge-count">Based on 180+ Google Reviews</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-center gap-5 text-[12.5px] text-mist">
-              <span className="flex items-center gap-1.5"><BadgeCheck className="w-4 h-4 text-up" /> SEBI Regulated</span>
-              <span className="flex items-center gap-1.5"><ShieldCheck className="w-4 h-4 text-up" /> NSE, BSE, MCX</span>
-              <span className="flex items-center gap-1.5"><GraduationCap className="w-4 h-4 text-up" /> NISM Certified</span>
-            </div>
-          </div>
-        </div>
+        {/* ══════════ TRUST & STATS STRIP ══════════
+            Phase 9.3: extracted to src/components/landing/sections/TrustStrip.tsx
+            (glassmorphic trust pillars + JetBrains Mono stat counters +
+            verifiable SEBI/NSE/NISM badges; 80ms staggered reveal).
+            The fabricated "4.8/180 Google Reviews" badge was REMOVED here —
+            consistent with the Phase 6 AggregateRating JSON-LD removal. */}
+        <TrustStrip />
 
         {/* ══════════ BROKING SERVICES ══════════ */}
         <section id="demat" className="sec bg-ink2/50">
@@ -1237,153 +1131,21 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ══════════ HOW IT WORKS ══════════ */}
-        <section id="howitworks" className="sec border-t border-white/[0.06]">
-          <div className="wrap max-w-4xl">
-            <div className="text-center reveal">
-              <p className="eyebrow justify-center">03 · How It Works</p>
-              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                Three steps. Zero friction.
-              </h2>
-              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-lg mx-auto">
-                Whether you are opening your first demat account or enrolling in a program — we keep it simple, fast, and human.
-              </p>
-            </div>
+        {/* ══════════ HOW IT WORKS ══════════
+            Phase 9.6: extracted to src/components/landing/sections/HowItWorks.tsx
+            (glassmorphic step cards + gold connecting dots + 80ms staggered reveal). */}
+        <HowItWorks onSelectInterest={handleInterest} />
 
-            <div className="mt-14 grid md:grid-cols-3 gap-8 reveal d1">
-              {[
-                {
-                  step: '01',
-                  icon: MessageCircle,
-                  title: 'Reach Out',
-                  desc: 'Fill the form, WhatsApp us, or call directly. Tell us what you need — a trading account, a course, or both.',
-                  cta: 'Start with a message',
-                  ctaKind: 'both' as const,
-                },
-                {
-                  step: '02',
-                  icon: UserCheck,
-                  title: 'Quick Onboarding',
-                  desc: 'Our team walks you through paperless e-KYC via DigiLocker. PAN, Aadhaar, bank proof — done in about 15 minutes.',
-                  cta: 'Open Demat Account',
-                  ctaKind: 'account' as const,
-                },
-                {
-                  step: '03',
-                  icon: Zap,
-                  title: 'Start Trading & Learning',
-                  desc: 'Your Angel One account goes live within 24 hours. Course batches start monthly — or get instant access to recordings.',
-                  cta: 'View Courses',
-                  ctaKind: 'courses' as const,
-                },
-              ].map((item) => (
-                <div key={item.step} className="hiw-step relative flex flex-col items-center text-center group">
-                  <div className="w-14 h-14 rounded-full border border-gold/40 bg-gold/[0.06] flex items-center justify-center text-gold group-hover:bg-gold/15 group-hover:border-gold/70 transition-all duration-300">
-                    <item.icon className="w-6 h-6" />
-                  </div>
-                  <p className="font-serif text-[48px] leading-none text-white/[0.04] absolute -top-1 right-2 select-none" aria-hidden="true">{item.step}</p>
-                  <h3 className="text-[17px] font-semibold mt-5">{item.title}</h3>
-                  <p className="text-[13.5px] text-mist leading-relaxed mt-3">{item.desc}</p>
-                  <button
-                    onClick={() => handleInterest(item.ctaKind, item.cta)}
-                    className="mt-6 text-[13px] font-medium text-gold hover:text-gold/80 transition-colors flex items-center gap-1.5"
-                  >
-                    {item.cta} <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Connecting line (desktop) */}
-            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px -translate-x-1/2 pointer-events-none" aria-hidden="true" />
-          </div>
-        </section>
+        {/* ══════════ TESTIMONIALS ══════════
+            Phase 9.7: extracted to src/components/landing/sections/Testimonials.tsx
+            (glassmorphic cards + gold star ratings + 80ms staggered reveal). */}
+        <Testimonials />
 
         <LazySection>
-        {/* ══════════ TESTIMONIALS ══════════ */}
-        <section id="testimonials" className="sec border-t border-white/[0.06] bg-ink2/50">
-          <div className="wrap">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-              <div className="reveal">
-                <p className="eyebrow">04 · Student and Client Reviews</p>
-                <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                  What Our Traders Say
-                </h2>
-              </div>
-              <p className="reveal d1 text-[13.5px] text-mist leading-relaxed max-w-md lg:text-right">
-                Real feedback from real people — no fake reviews, no incentivized ratings.
-                These are unprompted messages we have received over the years.
-              </p>
-            </div>
-
-            <div className="testimonial-scroll mt-12 reveal d1">
-              {TESTIMONIALS.map((t, i) => (
-                <div key={i} className="testimonial-card">
-                  <div className="flex items-center gap-1 mb-4">
-                    {[0,1,2,3,4].map((si) => (
-                      <Star key={si} style={{ width: 14, height: 14, fill: si < t.rating ? '#E2B15C' : 'rgba(255,255,255,0.15)', color: si < t.rating ? '#E2B15C' : 'rgba(255,255,255,0.15)' }} />
-                    ))}
-                  </div>
-                  <div className="testimonial-quote">
-                    <p className="text-[13.5px] text-mist leading-relaxed">{t.text}</p>
-                  </div>
-                  <div className="flex items-center gap-3 mt-5 pt-5 border-t border-white/[0.08]">
-                    <div className="testimonial-avatar">{t.initials}</div>
-                    <div>
-                      <p className="text-[14px] font-semibold">{t.name}</p>
-                      <p className="text-[11.5px] text-mist mt-0.5">{t.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-        </LazySection>
-
-        <LazySection>
-        {/* ══════════ FAQ ══════════ */}
-        <section id="faq" className="sec border-t border-white/[0.06]">
-          <div className="wrap max-w-3xl">
-            <div className="reveal">
-              <p className="eyebrow">05 · Frequently Asked Questions</p>
-              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                Questions We Get Asked a Lot
-              </h2>
-              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-lg">
-                Can not find what you are looking for? <a href="#contact" className="text-gold hover:underline">Reach out directly</a> — we respond within one business day.
-              </p>
-            </div>
-
-            <div className="mt-10 reveal d1">
-              {FAQS.map((f, i) => {
-                const isOpen = openFaq === i;
-                return (
-                  <div key={i} className="faq-item">
-                    <button
-                      className={`faq-toggle ${isOpen ? 'open' : ''}`}
-                      onClick={() => setOpenFaq(isOpen ? null : i)}
-                      aria-expanded={isOpen}
-                    >
-                      <span>{f.q}</span>
-                      <ChevronDown className="w-[18px] h-[18px] faq-chevron" />
-                    </button>
-                    <div
-                      className="faq-body"
-                      style={{
-                        maxHeight: isOpen ? '500px' : '0',
-                      }}
-                    >
-                      <div className="pb-5 text-[13.5px] text-mist leading-relaxed">
-                        {f.a}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </section>
+        {/* ══════════ FAQ ══════════
+            Phase 8/9: extracted to src/components/landing/sections/FAQ.tsx
+            (proof-of-concept for the section-component pattern + cf-* visual rewrite). */}
+        <FAQ />
         </LazySection>
 
         <LazySection>
@@ -1424,27 +1186,11 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Counters */}
-            <div className="reveal mt-14 grid grid-cols-1 sm:grid-cols-3 gap-px bg-white/[0.08] border border-white/[0.08] rounded-xl overflow-hidden">
-              <div className="bg-ink px-7 py-8">
-                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
-                  <span data-count="2400">0</span><span className="text-[24px]">+</span>
-                </div>
-                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Demat accounts guided</div>
-              </div>
-              <div className="bg-ink px-7 py-8">
-                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
-                  <span data-count="900">0</span><span className="text-[24px]">+</span>
-                </div>
-                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Traders mentored</div>
-              </div>
-              <div className="bg-ink px-7 py-8">
-                <div className="font-serif text-[36px] md:text-[42px] text-gold leading-none">
-                  <span data-count="12">0</span><span className="text-[24px]">&nbsp;yrs</span>
-                </div>
-                <div className="mt-2.5 text-[11px] tracking-[0.16em] uppercase text-mist">Combined market experience</div>
-              </div>
-            </div>
+            {/* Counters — moved into the TrustStrip section (Phase 9.3 IA improvement).
+                Was: 3 stat cards (2400+ accounts, 900+ traders, 12 yrs experience).
+                The counters now live in src/components/landing/sections/TrustStrip.tsx
+                so the "trust + stats" content is consolidated in one component
+                (matching docs/DESIGN_SYSTEM.md §6 sub-task 9.3). */}
           </div>
         </section>
         </LazySection>
@@ -1683,81 +1429,16 @@ export default function HomePage() {
         </section>
       </main>
 
-      {/* ══════════ REGULATORY FOOTER ══════════ */}
-      <footer className="border-t border-white/[0.08] bg-[#060910] mt-auto">
-        <div className="wrap py-14 md:py-16">
-          <div className="grid md:grid-cols-12 gap-10">
-            <div className="md:col-span-5">
-              <a href="#home" className="flex items-center gap-3">
-                <svg width="34" height="34" viewBox="0 0 32 32" aria-hidden="true">
-                  <rect x="1.25" y="1.25" width="29.5" height="29.5" rx="7" fill="none" stroke="#E2B15C" strokeWidth="1.4" opacity=".8" />
-                  <path d="M8 22 L13 16 L17 19 L24 10" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="24" cy="10" r="2.3" fill="#E2B15C" />
-                </svg>
-                <span className="leading-tight">
-                  <span className="block text-[15px] font-semibold tracking-tight">Systematic Yield</span>
-                  <span className="block text-[9px] font-medium tracking-[0.24em] text-mist uppercase">Analysts · Angel One Partner</span>
-                </span>
-              </a>
-              <p className="text-[13px] text-mist leading-relaxed mt-5 max-w-sm">
-                An Angel One Authorized Partner desk and stock market academy based in Jaipur —
-                helping investors trade with structure, not sentiment.
-              </p>
-              {/* TODO: Replace with actual business phone number */}
-              <p className="text-[12px] text-white/40 mt-4 tnum">+91 98290 12345 · connect@systematicyield.in</p>
-            </div>
-
-            <div className="md:col-span-3">
-              <p className="f-label">Explore</p>
-              <div className="flex flex-col gap-3 mt-2 text-[13.5px]">
-                {navLinks.map((id) => (
-                  <a key={id} href={`#${id}`} className="text-mist hover:text-gold transition-colors w-fit">
-                    {navLabels[id]}
-                  </a>
-                ))}
-              </div>
-            </div>
-
-            <div className="md:col-span-4">
-              <p className="f-label">Programs</p>
-              <div className="flex flex-col gap-3 mt-2 text-[13.5px]">
-                {[
-                  { label: 'Beginner to Pro: Stock Market Basics', interest: 'courses' },
-                  { label: 'Advanced Options & Derivatives Trading', interest: 'courses' },
-                  { label: 'Quantitative & Algo Trading Mastery', interest: 'courses' },
-                ].map((p) => (
-                  <button
-                    key={p.label}
-                    onClick={() => handleInterest(p.interest, p.label)}
-                    className="text-mist hover:text-gold transition-colors text-left w-fit"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-                <a href="#demat" className="text-mist hover:text-gold transition-colors w-fit">Angel One Pricing →</a>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-12 pt-6 border-t border-white/[0.07] flex flex-col md:flex-row md:items-center justify-between gap-4 text-[12.5px] text-white/45">
-            <p>© {year} Systematic Yield Analysts Pvt. Ltd. All rights reserved.</p>
-            <div className="flex gap-6">
-              <button onClick={() => { setModalKey('privacy'); setModalOpen(true); }} className="hover:text-gold transition-colors">Privacy Policy</button>
-              <button onClick={() => { setModalKey('terms'); setModalOpen(true); }} className="hover:text-gold transition-colors">Terms &amp; Conditions</button>
-            </div>
-          </div>
-
-          {/* SEBI Compliant Disclosures */}
-          <div className="sebi-disclosure">
-            <p><strong>SEBI Registration and Governance:</strong> Systematic Yield Analysts Pvt. Ltd. operates as an Authorized Partner (sub-broker) of Angel One Limited (SEBI Reg. No. INZ000161534), a stock broker registered with the Securities and Exchange Board of India and a member of NSE, BSE, and MCX. Investment in the securities market carries inherent market risk. All investors are advised to read the KYC documents, Risk Disclosure Documents, and the Do&apos;s and Don&apos;ts prescribed by SEBI before making any investment decisions.</p>
-            <p><strong>Disclaimer on Education Programs:</strong> The courses offered by Systematic Yield Analysts are educational in nature and are not investment advisory services. Course content is designed to enhance knowledge and understanding of financial markets and does not constitute a recommendation to buy, sell, or hold any security. No course guarantees any specific trading outcome or return. Past performance of any trading strategy, backtest result, or mentor track record discussed during the program is not indicative of future results.</p>
-            <p><strong>Derivatives and Leveraged Products:</strong> Derivatives trading, including futures and options, involves substantial risk of loss and is not suitable for every investor. The use of leverage in derivative transactions can result in losses exceeding the initial margin deposit. Investors should only trade in derivatives if they fully understand the risks involved.</p>
-            <p><strong>No Guaranteed Returns:</strong> Systematic Yield Analysts, its directors, employees, or mentors do not offer, promise, or guarantee any fixed or minimum returns on any investment or trading activity. Any person or entity offering guaranteed returns in the securities market is in violation of SEBI guidelines and should be reported to SEBI at <a href="https://scores.sebi.gov.in" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">scores.sebi.gov.in</a>.</p>
-            <p><strong>Grievance Redressal:</strong> For any complaint against the broker (Angel One), you may reach out to the <a href="https://smartodr.in/login" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">SMART ODR Portal</a> or SEBI SCORES portal. For complaints regarding our services, please email connect@systematicyield.in.</p>
-            <p className="text-white/40">Angel One Limited · Member NSE · BSE · MCX · SEBI Reg. No. INZ000161534 · CIN: U74999RJ2008PLC026458 · Office: 2nd Floor, Landmark Tower, Tonk Road, Jaipur, Rajasthan 302015</p>
-          </div>
-        </div>
-      </footer>
+      {/* ══════════ REGULATORY FOOTER ══════════
+          Phase 9.12: extracted to src/components/landing/sections/Footer.tsx
+          (Cinematic Finance rewrite — grain texture, gold glow drift,
+          JetBrains Mono SEBI disclosures, staggered column reveal). */}
+      <Footer
+        navLinks={navLinks}
+        navLabels={navLabels}
+        onSelectInterest={handleInterest}
+        onOpenModal={(key) => { setModalKey(key); setModalOpen(true); }}
+      />
 
       {/* ══════════ LEGAL MODAL ══════════ */}
       {modalOpen && (
