@@ -1,36 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
+import {
+  LENGTH_LIMITS,
+  isSafeImageUrl,
+  generateSlug,
+  validateSlug,
+  validateRequiredString,
+  validateOptionalString,
+  validationErrorResponse,
+  bodyTooLarge,
+  bodyTooLargeResponse,
+  type ValidationErrors,
+} from '@/lib/validation';
 
-function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-}
-
-// Reject obviously-malicious cover image URLs (javascript:, data: payloads, etc.)
-// while still allowing https image hosts.
-const MAX_TITLE = 200;
-const MAX_EXCERPT = 600;
-const MAX_CONTENT = 50000;
-const MAX_AUTHOR = 120;
-const MAX_CATEGORY = 60;
-
-function isSafeImageUrl(url: string | null | undefined): boolean {
-  if (!url) return true; // optional field
-  if (typeof url !== 'string' || url.length > 2048) return false;
-  try {
-    const u = new URL(url);
-    // Only allow http(s) and a reasonable host. Blocks javascript:/data: schemes.
-    return (u.protocol === 'http:' || u.protocol === 'https:') && !!u.hostname;
-  } catch {
-    return false;
-  }
-}
+// generateSlug + isSafeImageUrl + MAX_* constants moved to src/lib/validation.ts
+// (shared helpers in Phase 5 redo). Import from there.
 
 // GET /api/blogs — PUBLIC, returns PUBLISHED posts only (no content field).
 // SECURITY: the `published` filter is hard-coded to true and is NOT
@@ -79,74 +64,93 @@ export async function POST(request: NextRequest) {
   if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  if (bodyTooLarge(request)) {
+    return bodyTooLargeResponse();
+  }
 
   try {
     const body = await request.json();
     const { title, slug, excerpt, content, coverImage, category, author, published } = body;
 
-    // Validation
-    const errors: Record<string, string> = {};
+    // Validation — shared helpers from src/lib/validation.ts
+    const errors: ValidationErrors = {};
 
-    if (!title || typeof title !== 'string' || title.trim().length === 0) {
-      errors.title = 'Title is required.';
-    } else if (title.trim().length > MAX_TITLE) {
-      errors.title = `Title must be ${MAX_TITLE} characters or fewer.`;
-    }
+    const finalTitle = validateRequiredString(
+      title, LENGTH_LIMITS.BLOG_TITLE, 'title', errors, { label: 'Title' },
+    );
+    const finalContent = validateRequiredString(
+      content, LENGTH_LIMITS.BLOG_CONTENT, 'content', errors, { label: 'Content' },
+    );
 
-    const finalSlug = slug?.trim() ? slug.trim() : generateSlug(title);
-    if (!/^[a-z0-9-]+$/.test(finalSlug)) {
+    // Slug: if provided, validate; if not, derive from title.
+    const finalSlug = slug?.trim()
+      ? validateSlug(slug, errors)
+      : (finalTitle ? generateSlug(finalTitle) : '');
+    if (finalTitle && !finalSlug) {
+      // generateSlug produced an empty string (e.g. title was all non-ASCII).
       errors.slug = 'Slug must contain only lowercase letters, numbers, and hyphens.';
     }
 
-    if (!content || typeof content !== 'string' || content.trim().length === 0) {
-      errors.content = 'Content is required.';
-    } else if (content.trim().length > MAX_CONTENT) {
-      errors.content = `Content must be ${MAX_CONTENT} characters or fewer.`;
-    }
-
-    if (excerpt && typeof excerpt === 'string' && excerpt.trim().length > MAX_EXCERPT) {
-      errors.excerpt = `Excerpt must be ${MAX_EXCERPT} characters or fewer.`;
-    }
-
-    if (author && typeof author === 'string' && author.trim().length > MAX_AUTHOR) {
-      errors.author = `Author must be ${MAX_AUTHOR} characters or fewer.`;
-    }
-
-    if (category && typeof category === 'string' && category.trim().length > MAX_CATEGORY) {
-      errors.category = `Category must be ${MAX_CATEGORY} characters or fewer.`;
-    }
+    const finalExcerpt = validateOptionalString(
+      excerpt, LENGTH_LIMITS.BLOG_EXCERPT, 'excerpt', errors, { label: 'Excerpt' },
+    );
+    const finalAuthor = validateOptionalString(
+      author, LENGTH_LIMITS.BLOG_AUTHOR, 'author', errors, { label: 'Author' },
+    ) ?? 'SYA Team';
+    const finalCategory = validateOptionalString(
+      category, LENGTH_LIMITS.BLOG_CATEGORY, 'category', errors, { label: 'Category' },
+    ) ?? 'General';
 
     if (!isSafeImageUrl(coverImage)) {
       errors.coverImage = 'Cover image must be a valid http(s) URL.';
     }
 
     if (Object.keys(errors).length > 0) {
-      return NextResponse.json({ error: 'Validation failed', fields: errors }, { status: 400 });
+      return validationErrorResponse(errors);
     }
 
-    // Check for existing slug
-    const existing = await db.blogPost.findUnique({ where: { slug: finalSlug } });
+    // Slug-uniqueness check + create. We still do the upfront findUnique so
+    // we can return a friendly 409 BEFORE attempting the create — but the
+    // actual race window is closed by the Postgres unique constraint on
+    // BlogPost.slug. If a concurrent request inserts the same slug between
+    // our check and our create, Prisma throws P2002, which we catch and
+    // also return as a 409.
+    const existing = await db.blogPost.findUnique({ where: { slug: finalSlug! } });
     if (existing) {
       return NextResponse.json(
         { error: 'A post with this slug already exists.', fields: { slug: 'Slug must be unique.' } },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    const post = await db.blogPost.create({
-      data: {
-        title: title.trim(),
-        slug: finalSlug,
-        content: content.trim(),
-        excerpt: excerpt?.trim() || null,
-        coverImage: coverImage || null,
-        category: category?.trim() || 'General',
-        author: author?.trim() || 'SYA Team',
-        published: typeof published === 'boolean' ? published : false,
-      },
-    });
-
-    return NextResponse.json(post, { status: 201 });
+    try {
+      const post = await db.blogPost.create({
+        data: {
+          title: finalTitle!,
+          slug: finalSlug!,
+          content: finalContent!,
+          excerpt: finalExcerpt,
+          coverImage: coverImage || null,
+          category: finalCategory,
+          author: finalAuthor,
+          published: typeof published === 'boolean' ? published : false,
+        },
+      });
+      return NextResponse.json(post, { status: 201 });
+    } catch (error: unknown) {
+      // P2002 = unique constraint violation. Happens if another request
+      // inserted the same slug between our check and our create.
+      if (
+        typeof error === 'object' && error !== null &&
+        'code' in error && (error as { code: string }).code === 'P2002'
+      ) {
+        return NextResponse.json(
+          { error: 'A post with this slug already exists.', fields: { slug: 'Slug must be unique.' } },
+          { status: 409 },
+        );
+      }
+      throw error;
+    }
   } catch (error) {
     console.error('Blog creation error:', error);
     return NextResponse.json({ error: 'Failed to create blog post' }, { status: 500 });

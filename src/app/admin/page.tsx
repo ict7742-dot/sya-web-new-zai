@@ -367,21 +367,41 @@ export default function AdminPage() {
     setShowBlogForm(true);
   };
 
-  const openEditBlog = (post: BlogPost) => {
+  const openEditBlog = async (post: BlogPost) => {
     setEditingSlug(post.slug);
+    // Populate the form with the LIST-level fields we already have (title,
+    // slug, category, author, excerpt, published, coverImage). The `content`
+    // field is deliberately omitted by the list endpoint to keep list
+    // payloads small — fetch the full post (incl. markdown body) from the
+    // auth-gated admin detail endpoint.
     setBlogForm({
       title: post.title,
       slug: post.slug,
       category: post.category,
       author: post.author,
       excerpt: post.excerpt || '',
-      content: '', // Content not returned by list API
+      content: '', // placeholder until the detail fetch completes
       published: post.published,
       coverImage: post.coverImage || '',
     });
     setBlogFormErrors({});
     setBlogFormError('');
     setShowBlogForm(true);
+
+    // Fetch the full post (incl. content) in the background. This closes
+    // the bug where editing a post would WIPE its markdown content because
+    // the editor opened with an empty content field.
+    try {
+      const res = await fetch(`/api/admin/blogs/${encodeURIComponent(post.slug)}`);
+      if (res.ok) {
+        const full = await res.json();
+        setBlogForm((prev) => ({ ...prev, content: full.content ?? '' }));
+      } else {
+        setBlogFormError('Could not load existing post content — saving may overwrite it.');
+      }
+    } catch {
+      setBlogFormError('Network error loading post content.');
+    }
   };
 
   const handleBlogTitleChange = (title: string) => {
