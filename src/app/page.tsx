@@ -40,6 +40,7 @@ import { HowItWorks } from '@/components/landing/sections/HowItWorks';
 import { TrustStrip } from '@/components/landing/sections/TrustStrip';
 import { Testimonials } from '@/components/landing/sections/Testimonials';
 import { TickerBar } from '@/components/landing/sections/TickerBar';
+import { Hero } from '@/components/landing/sections/Hero';
 import {
   captureUtm,
   getStoredUtm,
@@ -66,24 +67,8 @@ export default function HomePage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState('home');
-  const [activeSym, setActiveSym] = useState(0);
-  const [seriesMap, setSeriesMap] = useState<Map<string, SeriesData>>(
-    () => {
-      const m = new Map<string, SeriesData>();
-      SYMBOLS.forEach((s) => m.set(s.sym, genSeries(s)));
-      return m;
-    }
-  );
-  const [flashClass, setFlashClass] = useState('');
-  // VOL readout jitter — initialized to 0 so the server-rendered value matches
-  // the first client render (no hydration mismatch). A non-zero random jitter
-  // is applied AFTER mount via useEffect, and re-rolled every 5 s so the
-  // terminal readout stays "live" instead of frozen. Calling Math.random()
-  // directly inside the JSX (as the previous code did) produced React error
-  // #418 because the server render and client render got different values.
-  const [volJitter, setVolJitter] = useState(0);
-  // Ticker state + price-flicker effect moved into the TickerBar section
-  // component (Phase 9.2 extraction — src/components/landing/sections/TickerBar.tsx).
+  // Chart state (activeSym, seriesMap, flashClass, volJitter) moved into
+  // the Hero section component (Phase 9.1 extraction).
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submitterName, setSubmitterName] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -98,18 +83,7 @@ export default function HomePage() {
   const [showMobileCta, setShowMobileCta] = useState(false);
 
   /* ── Refs ── */
-  const chartRef = useRef<SVGSVGElement>(null);
-  const gGridRef = useRef<SVGGElement>(null);
-  const gCandlesRef = useRef<SVGGElement>(null);
-  const gOverlayRef = useRef<SVGGElement>(null);
-  const gXhairRef = useRef<SVGGElement>(null);
-  const xVRef = useRef<SVGLineElement>(null);
-  const xHRef = useRef<SVGLineElement>(null);
-  const xPRRef = useRef<SVGRectElement>(null);
-  const xPTRef = useRef<SVGTextElement>(null);
-  const xTRRef = useRef<SVGRectElement>(null);
-  const xTTRef = useRef<SVGTextElement>(null);
-  const tPriceRef = useRef<HTMLSpanElement>(null);
+  // Chart refs moved into the Hero section component (Phase 9.1).
   const formRef = useRef<HTMLFormElement>(null);
   const fNameRef = useRef<HTMLInputElement>(null);
   const fPhoneRef = useRef<HTMLInputElement>(null);
@@ -140,143 +114,9 @@ export default function HomePage() {
       .catch(() => { /* silently fail */ });
   }, []);
 
-  const cur = SYMBOLS[activeSym];
-  const st = seriesMap.get(cur.sym)!;
-  const lastCandle = st.candles[st.candles.length - 1];
+  // Chart helpers + derived values + render-chart/live-tick/VOL-jitter effects
+  // ALL moved into the Hero section component (Phase 9.1 extraction).
 
-  /* ── Chart helpers ── */
-  const VW = 560;
-  const VH = 250;
-  const padL = 6;
-  const padR = 58;
-  const padT = 12;
-  const padB = 24;
-
-  const getChartGeom = useCallback(() => {
-    const cs = st.candles;
-    const n = cs.length;
-    const step = (VW - padL - padR) / n;
-    let mn = Infinity;
-    let mx = -Infinity;
-    cs.forEach((k) => {
-      mn = Math.min(mn, k.l);
-      mx = Math.max(mx, k.h);
-    });
-    const pad = (mx - mn) * 0.08;
-    const min = mn - pad;
-    const max = mx + pad;
-    return { step, min, max, n };
-  }, [st]);
-
-  const yOf = useCallback(
-    (v: number) => {
-      const { min, max } = getChartGeom();
-      return padT + ((max - v) / (max - min)) * (VH - padT - padB);
-    },
-    [getChartGeom]
-  );
-
-  const vOf = useCallback(
-    (y: number) => {
-      const { min, max } = getChartGeom();
-      return max - ((y - padT) / (VH - padT - padB)) * (max - min);
-    },
-    [getChartGeom]
-  );
-
-  const xOf = useCallback(
-    (i: number) => {
-      const { step } = getChartGeom();
-      return padL + step * i + step / 2;
-    },
-    [getChartGeom]
-  );
-
-  const fmtP = (v: number) => inr(v, cur.dec);
-  const fmtAxis = (v: number) =>
-    v >= 500
-      ? v.toLocaleString('en-IN', { maximumFractionDigits: 0 })
-      : v.toFixed(1);
-  const timeOf = (i: number) => {
-    const m = 9 * 60 + 15 + i * 5;
-    return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-  };
-
-  /* ── Render chart ── */
-  useEffect(() => {
-    const { step, min, max, n } = getChartGeom();
-    const cs = st.candles;
-
-    // Grid + axis labels
-    let grid = '';
-    for (let g = 0; g <= 4; g++) {
-      const y = padT + ((VH - padT - padB) * g) / 4;
-      const val = max - ((max - min) * g) / 4;
-      grid += `<line x1="${padL}" x2="${VW - padR + 8}" y1="${y}" y2="${y}" stroke="rgba(255,255,255,0.05)"/>`;
-      grid += `<text x="${VW - padR + 12}" y="${y + 3}" font-size="9.5" fill="#5F6981">${fmtAxis(val)}</text>`;
-    }
-    for (let i = 4; i < n; i += 8)
-      grid += `<text x="${xOf(i)}" y="${VH - 7}" font-size="9" fill="#5F6981" text-anchor="middle">${timeOf(i)}</text>`;
-    if (gGridRef.current) gGridRef.current.innerHTML = grid;
-
-    // Candles
-    const bw = Math.max(2, step * 0.55);
-    let s = '';
-    cs.forEach((k, i) => {
-      const up = k.c >= k.o;
-      const col = up ? '#35D49A' : '#F0555F';
-      const x = xOf(i);
-      const yH = yOf(k.h);
-      const yL = yOf(k.l);
-      const yO = yOf(k.o);
-      const yC = yOf(k.c);
-      s += `<line x1="${x}" x2="${x}" y1="${yH}" y2="${yL}" stroke="${col}" stroke-width="1" opacity="0.85"/>`;
-      s += `<rect x="${(x - bw / 2).toFixed(2)}" y="${Math.min(yO, yC).toFixed(2)}" width="${bw.toFixed(2)}" height="${Math.max(1, Math.abs(yO - yC)).toFixed(2)}" fill="${col}" opacity="${i === n - 1 ? 1 : 0.9}"/>`;
-    });
-    if (gCandlesRef.current) gCandlesRef.current.innerHTML = s;
-
-    // Last-price line
-    const ylp = yOf(cs[n - 1].c);
-    if (gOverlayRef.current) {
-      gOverlayRef.current.innerHTML =
-        `<line x1="${padL}" x2="${VW - padR}" y1="${ylp}" y2="${ylp}" stroke="#E2B15C" stroke-width="1" stroke-dasharray="3 3" opacity="0.65"/>` +
-        `<rect x="${VW - padR + 2}" y="${ylp - 8}" width="52" height="16" rx="3" fill="#E2B15C"/>` +
-        `<text x="${VW - padR + 28}" y="${ylp + 3.5}" font-size="9.5" font-weight="600" fill="#0A0F1C" text-anchor="middle">${fmtP(cs[n - 1].c)}</text>`;
-    }
-  }, [st, getChartGeom, xOf, yOf, fmtP]);
-
-  /* ── Live tick ── */
-  useEffect(() => {
-    if (reducedMotion.current) return;
-    const iv = setInterval(() => {
-      if (document.hidden) return;
-      setSeriesMap((prev) => {
-        const next = new Map(prev);
-        const sd = next.get(cur.sym);
-        if (!sd) return prev;
-        const newSd = { ...sd, candles: sd.candles.map((k) => ({ ...k })) };
-        const last = newSd.candles[newSd.candles.length - 1];
-        const old = last.c;
-        last.c = last.c * (1 + (Math.random() - 0.5) * cur.vol * 1.8);
-        last.h = Math.max(last.h, last.c);
-        last.l = Math.min(last.l, last.c);
-        newSd.tickCount++;
-        if (newSd.tickCount % 14 === 0) {
-          newSd.candles.push({ o: last.c, h: last.c, l: last.c, c: last.c });
-          newSd.candles.shift();
-        }
-        next.set(cur.sym, newSd);
-        return next;
-      });
-      // Flash
-      setFlashClass((prev) => {
-        const dir = Math.random() > 0.5 ? 'flash-up' : 'flash-down';
-        return dir;
-      });
-      setTimeout(() => setFlashClass(''), 550);
-    }, 900);
-    return () => clearInterval(iv);
-  }, [cur]);
 
   /* ── Social proof notifications ── */
   useEffect(() => {
@@ -431,18 +271,7 @@ export default function HomePage() {
   /* ── Ticker price flicker ──
      Phase 9.2: moved into the TickerBar section component. */
 
-  /* ── VOL readout jitter — re-roll after mount, then every 5 s. ──
-      This avoids the Math.random()-in-JSX hydration bug (server vs client
-      would produce different values → React error #418) by keeping the
-      initial render deterministic (volJitter starts at 0) and only
-      introducing randomness in a client-only effect. */
-  useEffect(() => {
-    if (reducedMotion.current) return;
-    const roll = () => setVolJitter(Math.random() * 8);
-    roll();
-    const iv = setInterval(roll, 5000);
-    return () => clearInterval(iv);
-  }, []);
+  // VOL readout jitter effect moved into Hero (Phase 9.1 extraction).
 
   /* ── Escape key for modal ── */
   useEffect(() => {
@@ -616,15 +445,7 @@ export default function HomePage() {
     setFormErrors({});
   };
 
-  /* ── Header data ── */
-  const chg = lastCandle.c - st.prevClose;
-  const pct = (chg / st.prevClose) * 100;
-  const up = chg >= 0;
-  const sma =
-    st.candles.slice(-20).reduce((a, k) => a + k.c, 0) / 20;
-  const above = lastCandle.c >= sma;
-
-  // tkHTML removed — TickerBar renders its own JSX from the local tickers state.
+  // Chart-derived values (chg, pct, up, sma, above) moved into Hero (Phase 9.1).
 
   const navLinks = ['home', 'demat', 'courses', 'howitworks', 'testimonials', 'faq', 'about', 'blog', 'contact'];
   const navLabels: Record<string, string> = {
@@ -743,134 +564,13 @@ export default function HomePage() {
       </header>
 
       <main id="main-content">
-        {/* ══════════ HERO ══════════ */}
-        <section id="home" className="relative overflow-hidden">
-          <div className="grid-paper absolute inset-0 pointer-events-none" aria-hidden="true" />
-
-          <div className="wrap relative pt-14 pb-16 lg:pt-24 lg:pb-24 grid lg:grid-cols-12 gap-12 lg:gap-10 items-center">
-            {/* Copy */}
-            <div className="lg:col-span-6">
-              <p className="eyebrow reveal">Angel One Authorized Partner · Jaipur</p>
-              <h1 className="reveal d1 font-serif font-medium text-[38px] leading-[1.08] sm:text-[46px] lg:text-[54px] tracking-[-0.01em] mt-6">
-                Master the <em>Markets</em>.<br />Trade with the Best.
-              </h1>
-              <p className="reveal d2 mt-6 text-mist text-[15.5px] md:text-base leading-relaxed max-w-xl">
-                Your trusted Angel One Authorized Partner and premier stock market education academy.
-                Build your wealth with data-driven strategies — not guesswork.
-              </p>
-              <div className="reveal d3 mt-9 flex flex-wrap gap-3">
-                <button
-                  onClick={() => handleInterest('account', '')}
-                  className="btn btn-primary"
-                >
-                  Open Angel One Account <ArrowRight className="w-4 h-4" />
-                </button>
-                <a href="#courses" className="btn btn-ghost">
-                  View Our Courses
-                </a>
-              </div>
-              <p className="reveal d3 mt-8 flex items-center gap-2.5 text-[12.5px] text-mist">
-                <ShieldCheck className="w-[15px] h-[15px] text-gold shrink-0" />
-                Backed by Angel One — Member NSE · BSE · MCX. Paperless onboarding in about 15 minutes.
-              </p>
-            </div>
-
-            {/* Live terminal */}
-            <div className="lg:col-span-6 reveal d2">
-              <div className="relative">
-                <span className="tick tick-tl" aria-hidden="true" />
-                <span className="tick tick-tr" aria-hidden="true" />
-                <span className="tick tick-bl" aria-hidden="true" />
-                <span className="tick tick-br" aria-hidden="true" />
-
-                <div className="rounded-xl border border-white/10 bg-panel shadow-2xl shadow-black/60 overflow-hidden">
-                  {/* Terminal header / symbol tabs */}
-                  <div className="flex items-center justify-between border-b border-white/[0.07] pl-2 pr-4">
-                    <div className="flex">
-                      {SYMBOLS.map((s, i) => (
-                        <button
-                          key={s.sym}
-                          className={`term-tab ${activeSym === i ? 'active' : ''}`}
-                          onClick={() => setActiveSym(i)}
-                        >
-                          {s.sym}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="live-dot" />
-                      <span className="text-[10.5px] font-semibold tracking-[0.2em] text-up">LIVE</span>
-                    </div>
-                  </div>
-
-                  {/* Quote header */}
-                  <div className="px-5 pt-4 flex items-end justify-between gap-4">
-                    <div>
-                      <div className="text-[11px] tracking-[0.18em] text-mist uppercase font-medium">
-                        {cur.sym}
-                      </div>
-                      <div className="flex items-baseline gap-3 mt-1.5">
-                        <span
-                          ref={tPriceRef}
-                          id="tPrice"
-                          className={`tnum text-[30px] font-semibold leading-none ${flashClass}`}
-                        >
-                          {fmtP(lastCandle.c)}
-                        </span>
-                        <span
-                          className={`tnum text-[13px] px-1.5 py-0.5 rounded ${up ? 'bg-up/10 text-up' : 'bg-down/10 text-down'}`}
-                        >
-                          {up ? '▲' : '▼'} {Math.abs(pct).toFixed(2)}%
-                        </span>
-                      </div>
-                    </div>
-                    <div className="hidden sm:flex gap-5 text-right">
-                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">OPEN</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.o)}</div></div>
-                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">HIGH</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.h)}</div></div>
-                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">LOW</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.l)}</div></div>
-                      <div><div className="text-[9.5px] tracking-[0.16em] text-white/40">CLOSE</div><div className="tnum text-[12.5px] text-white/85 mt-0.5">{fmtP(lastCandle.c)}</div></div>
-                    </div>
-                  </div>
-
-                  {/* Candlestick chart */}
-                  <div className="mt-2 px-1">
-                    <ChartSVG
-                      chartRef={chartRef}
-                      gGridRef={gGridRef}
-                      gCandlesRef={gCandlesRef}
-                      gOverlayRef={gOverlayRef}
-                      gXhairRef={gXhairRef}
-                      xVRef={xVRef}
-                      xHRef={xHRef}
-                      xPRRef={xPRRef}
-                      xPTRef={xPTRef}
-                      xTRRef={xTRRef}
-                      xTTRef={xTTRef}
-                      getChartGeom={getChartGeom}
-                      yOf={yOf}
-                      vOf={vOf}
-                      xOf={xOf}
-                      fmtP={fmtP}
-                      timeOf={timeOf}
-                    />
-                  </div>
-
-                  {/* Terminal footer */}
-                  <div className="flex items-center justify-between border-t border-white/[0.07] px-5 py-3 text-[11.5px] text-mist">
-                    <span className="tnum">VOL {(st.volM + volJitter).toFixed(1)}M</span>
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full ${above ? 'bg-up' : 'bg-down'} inline-block`} />
-                      {above ? 'Above 20-SMA · Bullish bias' : 'Below 20-SMA · Cautious'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <p className="mt-3.5 text-[11px] text-white/35">
-                Illustrative feed for demonstration — open your account with us for live market data.
-              </p>
-            </div>
-          </div>
-        </section>
+        {/* ══════════ HERO ══════════
+            Phase 9.1: extracted to src/components/landing/sections/Hero.tsx
+            (Cinematic Finance rewrite — Bebas Neue 14vw headline, layered bg
+            with grain + parallax gold glow drift, glassmorphic terminal with
+            gold gradient border, JetBrains Mono for all numerics, Ken Burns
+            zoom on chart container, 80ms staggered reveal). */}
+        <Hero onSelectInterest={handleInterest} />
 
         {/* ══════════ TRUST & STATS STRIP ══════════
             Phase 9.3: extracted to src/components/landing/sections/TrustStrip.tsx

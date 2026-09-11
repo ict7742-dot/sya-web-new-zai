@@ -39,6 +39,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
 
     // React rules
     "react-hooks/exhaustive-deps": "warn",   // very noisy on legacy code — warn first
+    "react-hooks/preserve-manual-memoization": "off", // not using React Compiler yet
     "react/no-unescaped-entities": "warn",
     "react/display-name": "off",             // Next.js App Router doesn't require display names
     "react/prop-types": "off",               // not using PropTypes (using TS types)
