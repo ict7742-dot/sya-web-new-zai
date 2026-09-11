@@ -203,6 +203,8 @@ Please ensure `bun run lint` passes before submitting.
 
 ## 📄 License
 
+This is a private project. All rights reserved. No license is granted for use, copying, modification, or distribution.
+
 This project is proprietary software owned by Systematic Yield Analysts Pvt. Ltd.
 All rights reserved.
 
