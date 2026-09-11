@@ -53,7 +53,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     return [...staticEntries, ...blogEntries, ...categoryEntries, ...authorEntries];
   } catch (error) {
-    console.error('Sitemap blog fetch error:', error);
+    // Loud, distinctive log so this is searchable in Vercel/Logflare streams.
+    console.error(
+      '[SITEMAP FALLBACK] Database query failed — returning static-only sitemap.',
+      'This usually means DATABASE_URL is wrong, the schema is out of sync,',
+      'or the DB is unreachable from this runtime.',
+      'Error:',
+      error instanceof Error ? error.message : String(error),
+    );
     return staticEntries;
   }
 }

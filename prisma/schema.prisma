@@ -3,7 +3,11 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  // Production target is PostgreSQL. Local dev is also PostgreSQL via
+  // docker-compose (see docker-compose.yml) — keeping one provider across
+  // environments eliminates the "works on SQLite, breaks on Postgres" class
+  // of bugs at deploy time.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

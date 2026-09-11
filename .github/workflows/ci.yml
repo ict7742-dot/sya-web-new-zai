@@ -89,12 +89,35 @@ jobs:
             echo "✅ db/custom.db is not tracked by git"
           fi
 
-  # ─── Job 2: Production Build ────────────────────────────
+  # ─── Job 2: Production Build (with real PostgreSQL) ────
   build:
     name: Production Build
     runs-on: ubuntu-latest
     needs: quality
     timeout-minutes: 15
+
+    # Service container: a real PostgreSQL 16 instance. Using the real
+    # production provider here (not SQLite) catches schema/provider drift
+    # at CI time — a class of bugs that previously caused build false-greens.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+          --health-start-period 30s
+
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=public"
+      ADMIN_SECRET: "ci-test-secret-not-real"
 
     steps:
       - name: 📥 Checkout
@@ -108,23 +131,25 @@ jobs:
       - name: 📦 Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: 🔍 Create .env from example
-        run: cp .env.example .env
-
       - name: 🗄️ Generate Prisma client
         run: bunx prisma generate
 
-      - name: 🗄️ Push database schema (create DB before build)
-        run: bunx prisma db push
-        env:
-          DATABASE_URL: "file:./db/ci-test.db"
-          ADMIN_SECRET: "ci-test-secret-not-real"
+      - name: 🗄️ Apply migrations against CI database
+        # `migrate deploy` applies pending migrations from prisma/migrations/.
+        # This is the SAME command production runs at deploy time, so any
+        # migration that would fail in prod will fail here first.
+        run: bunx prisma migrate deploy
 
       - name: 🏗️ Build
         run: bun run build
-        env:
-          DATABASE_URL: "file:./db/ci-test.db"
-          ADMIN_SECRET: "ci-test-secret-not-real"
+
+      - name: 🔍 Verify build artifacts
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "❌ Build output missing!"
+            exit 1
+          fi
+          echo "✅ Build artifacts present"
 
       - name: 📤 Upload build artifact
         uses: actions/upload-artifact@v4

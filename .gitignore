@@ -22,11 +22,14 @@ node_modules/
 .env.*
 !.env.example
 
-# ─── Database (SQLite local dev) ────────────────────────
+# ─── Database (local dev — SQLite fallback OR Postgres data volume) ──
+# SQLite (legacy / ephemeral test envs that override the schema provider)
 /db/*.db
 /db/*.db-journal
 *.sqlite
 *.sqlite3
+# Local Postgres data volume mounted by docker-compose
+/docker/postgres-data/
 
 # ─── Debug & Logs ───────────────────────────────────────
 npm-debug.log*
