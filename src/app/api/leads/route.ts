@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
+import {
+  LENGTH_LIMITS,
+  validateRequiredString,
+  validateOptionalString,
+  validateEmail,
+  validateIndianPhone,
+  validationErrorResponse,
+  bodyTooLarge,
+  bodyTooLargeResponse,
+  type ValidationErrors,
+} from '@/lib/validation';
+import { safeCsvCell } from '@/lib/csv';
 
 // Rate limit store (in-memory, per server instance)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -19,27 +31,12 @@ function isRateLimited(ip: string): boolean {
 }
 
 function getClientIp(req: NextRequest): string {
-  // Behind Caddy/Vercel the proxy sets x-forwarded-for. Take the first hop and
-  // validate it looks like an IP so a malicious header value can't poison the
-  // rate-limit key with arbitrary strings.
   const raw = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
   if (raw && /^[0-9a-fA-F.:]+$/.test(raw)) return raw;
   return 'unknown';
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
-}
-
-function isValidIndianPhone(phone: string): boolean {
-  const digits = phone.replace(/\D/g, '');
-  return /^\d{10}$/.test(digits) && /^[6-9]/.test(digits);
-}
-
-// Hard length caps to prevent oversized payloads bloating the DB / causing DoS.
-const MAX_NAME = 120;
-const MAX_EMAIL = 254; // RFC 5321 practical limit
-const MAX_MESSAGE = 2000;
+const VALID_INTERESTS = new Set(['account', 'courses', 'both']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,56 +49,61 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
+    // Body-size policy (1 MB default — generous for a lead form payload which
+    // is at most a few hundred bytes; anything bigger is suspicious).
+    if (bodyTooLarge(request)) {
+      return bodyTooLargeResponse();
+    }
 
     const body = await request.json();
     const { name, phone, email, interest, message, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, landingPage } = body;
 
-    // Server-side validation
-    const errors: Record<string, string> = {};
+    // Server-side validation — shared helpers from src/lib/validation.ts
+    const errors: ValidationErrors = {};
 
-    if (!name || typeof name !== 'string' || name.trim().length < 3) {
-      errors.name = 'Please enter your full name.';
-    } else if (name.trim().length > MAX_NAME) {
-      errors.name = `Name must be ${MAX_NAME} characters or fewer.`;
-    }
+    const finalName = validateRequiredString(
+      name, LENGTH_LIMITS.LEAD_NAME, 'name', errors, { minLength: 3, label: 'Name' }
+    );
+    const finalPhone = validateIndianPhone(phone, errors);
+    const finalEmail = validateEmail(email, errors);
 
-    if (!phone || typeof phone !== 'string' || !isValidIndianPhone(phone)) {
-      errors.phone = 'Enter a valid 10-digit Indian mobile number.';
-    }
-
-    if (!email || typeof email !== 'string' || !isValidEmail(email)) {
-      errors.email = 'Enter a valid email address.';
-    } else if (email.trim().length > MAX_EMAIL) {
-      errors.email = 'Email address is too long.';
-    }
-
-    if (!interest || !['account', 'courses', 'both'].includes(interest)) {
+    if (!interest || !VALID_INTERESTS.has(interest)) {
       errors.interest = 'Please select a valid option.';
     }
 
-    if (message && typeof message === 'string' && message.trim().length > MAX_MESSAGE) {
-      errors.message = `Message must be ${MAX_MESSAGE} characters or fewer.`;
-    }
+    const finalMessage = validateOptionalString(
+      message, LENGTH_LIMITS.LEAD_MESSAGE, 'message', errors, { label: 'Message' }
+    );
+
+    // UTM params are optional but bounded — generous cap so a 100KB utm_source
+    // doesn't bloat the row.
+    const MAX_UTM = 500;
+    const utmSourceTrim = typeof utmSource === 'string' ? utmSource.slice(0, MAX_UTM) : null;
+    const utmMediumTrim = typeof utmMedium === 'string' ? utmMedium.slice(0, MAX_UTM) : null;
+    const utmCampaignTrim = typeof utmCampaign === 'string' ? utmCampaign.slice(0, MAX_UTM) : null;
+    const utmTermTrim = typeof utmTerm === 'string' ? utmTerm.slice(0, MAX_UTM) : null;
+    const utmContentTrim = typeof utmContent === 'string' ? utmContent.slice(0, MAX_UTM) : null;
+    const landingPageTrim = typeof landingPage === 'string' ? landingPage.slice(0, 2048) : null;
 
     if (Object.keys(errors).length > 0) {
-      return NextResponse.json({ error: 'Validation failed', fields: errors }, { status: 400 });
+      return validationErrorResponse(errors);
     }
 
     // Save to database with UTM data
     const lead = await db.lead.create({
       data: {
-        name: name.trim(),
-        phone: phone.replace(/\D/g, ''),
-        email: email.trim().toLowerCase(),
+        name: finalName!,
+        phone: finalPhone!,
+        email: finalEmail!,
         interest,
-        message: message?.trim() || null,
+        message: finalMessage,
         source: 'website',
-        utmSource: utmSource || null,
-        utmMedium: utmMedium || null,
-        utmCampaign: utmCampaign || null,
-        utmTerm: utmTerm || null,
-        utmContent: utmContent || null,
-        landingPage: landingPage || null,
+        utmSource: utmSourceTrim,
+        utmMedium: utmMediumTrim,
+        utmCampaign: utmCampaignTrim,
+        utmTerm: utmTermTrim,
+        utmContent: utmContentTrim,
+        landingPage: landingPageTrim,
       },
     });
 
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       leadId: lead.id,
-      firstName: name.trim().split(' ')[0],
+      firstName: finalName!.split(' ')[0],
       interest,
       ekycUrl,
     });
@@ -128,7 +130,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET endpoint for admin (count + recent leads) — requires Bearer token auth
+// GET endpoint for admin (count + recent leads) — requires admin session
 export async function GET(request: NextRequest) {
   if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -156,37 +158,20 @@ export async function GET(request: NextRequest) {
         'Landing Page', 'Submitted At',
       ];
 
-      // CSV cell escaping with formula-injection defense (OWASP).
-      // 1. If the value starts with =, +, -, @, tab, or CR, prefix with a
-      //    single quote so Excel/Sheets treats it as text, not a formula.
-      //    (Otherwise a lead named `=cmd|"/c calc"!A1` could execute shell
-      //    commands when an admin opens the export.)
-      // 2. Wrap in double quotes and double any embedded double quotes.
-      // Phase 5 will extract this into src/lib/csv.ts (safeCsvCell) so the
-      // same logic is shared with /api/newsletter. For now it's inline.
-      const escape = (v: string | null | undefined) => {
-        if (v == null) return '';
-        let s = String(v);
-        if (/^[=+\-@\t\r]/.test(s)) {
-          s = `'${s}`;
-        }
-        return `"${s.replace(/"/g, '""')}"`;
-      };
-
       const rows = leads.map((l) => [
-        escape(l.name),
-        escape(l.phone),
-        escape(l.email),
-        escape(l.interest),
-        escape(l.message),
-        escape(l.source),
-        escape(l.utmSource),
-        escape(l.utmMedium),
-        escape(l.utmCampaign),
-        escape(l.utmTerm),
-        escape(l.utmContent),
-        escape(l.landingPage),
-        escape(l.createdAt.toISOString()),
+        safeCsvCell(l.name),
+        safeCsvCell(l.phone),
+        safeCsvCell(l.email),
+        safeCsvCell(l.interest),
+        safeCsvCell(l.message),
+        safeCsvCell(l.source),
+        safeCsvCell(l.utmSource),
+        safeCsvCell(l.utmMedium),
+        safeCsvCell(l.utmCampaign),
+        safeCsvCell(l.utmTerm),
+        safeCsvCell(l.utmContent),
+        safeCsvCell(l.landingPage),
+        safeCsvCell(l.createdAt.toISOString()),
       ].join(','));
 
       const csv = [headers.join(','), ...rows].join('\n');

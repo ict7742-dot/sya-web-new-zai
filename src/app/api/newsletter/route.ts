@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
+import {
+  validateEmail,
+  bodyTooLarge,
+  bodyTooLargeResponse,
+  type ValidationErrors,
+  validationErrorResponse,
+} from '@/lib/validation';
+import { safeCsvCell } from '@/lib/csv';
 
 // Per-IP rate limit (in-memory, same pattern as leads).
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -25,9 +33,7 @@ function getClientIp(req: NextRequest): string {
   return 'unknown';
 }
 
-function isValidEmail(email: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) && email.length <= 254;
-}
+const VALID_SOURCES = new Set(['blog', 'footer', 'landing']);
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,20 +44,17 @@ export async function POST(request: NextRequest) {
         { status: 429 }
       );
     }
-
-    const body = await request.json().catch(() => null);
-    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
-    const source = typeof body?.source === 'string' ? body.source : 'blog';
-
-    if (!isValidEmail(email)) {
-      return NextResponse.json(
-        { error: 'Please enter a valid email address.' },
-        { status: 400 }
-      );
+    if (bodyTooLarge(request)) {
+      return bodyTooLargeResponse();
     }
 
-    if (!['blog', 'footer', 'landing'].includes(source)) {
-      return NextResponse.json({ error: 'Invalid source.' }, { status: 400 });
+    const body = await request.json().catch(() => null);
+    const errors: ValidationErrors = {};
+    const finalEmail = validateEmail(body?.email, errors);
+    const source = typeof body?.source === 'string' && VALID_SOURCES.has(body.source) ? body.source : 'blog';
+
+    if (Object.keys(errors).length > 0) {
+      return validationErrorResponse(errors);
     }
 
     // Upsert: if already subscribed, just reactivate silently so we never
@@ -60,9 +63,9 @@ export async function POST(request: NextRequest) {
     // user always has a valid one-click opt-out link (CAN-SPAM / GDPR).
     const unsubscribeToken = randomBytes(24).toString('hex');
     await db.newsletterSubscriber.upsert({
-      where: { email },
+      where: { email: finalEmail! },
       update: { active: true, source, unsubscribeToken },
-      create: { email, source, active: true, unsubscribeToken },
+      create: { email: finalEmail!, source, active: true, unsubscribeToken },
     });
 
     return NextResponse.json({
@@ -97,20 +100,11 @@ export async function GET(request: NextRequest) {
       });
 
       const headers = ['Email', 'Source', 'Active', 'Subscribed At'];
-      // CSV cell escaping with formula-injection defense (OWASP). See the
-      // matching comment in /api/leads/route.ts for the rationale. Phase 5
-      // will extract this into src/lib/csv.ts (safeCsvCell).
-      const escape = (v: string | null | undefined) => {
-        if (v == null) return '';
-        let s = String(v);
-        if (/^[=+\-@\t\r]/.test(s)) {
-          s = `'${s}`;
-        }
-        return `"${s.replace(/"/g, '""')}"`;
-      };
+      // CSV cell escaping is centralized in src/lib/csv.ts (OWASP formula-
+      // injection defense — prefix leading =+-@\t\r with a single quote).
 
       const rows = subs.map((s) =>
-        [escape(s.email), escape(s.source), escape(s.active ? 'Yes' : 'No'), escape(s.createdAt.toISOString())].join(',')
+        [safeCsvCell(s.email), safeCsvCell(s.source), safeCsvCell(s.active ? 'Yes' : 'No'), safeCsvCell(s.createdAt.toISOString())].join(',')
       );
       const csv = [headers.join(','), ...rows].join('\n');
 

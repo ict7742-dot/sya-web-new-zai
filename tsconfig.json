@@ -6,11 +6,20 @@
       "dom.iterable",
       "esnext"
     ],
-    "allowJs": true,
+    // Tightened (Phase 5): previously `allowJs: true` and
+    // `noImplicitAny: false` were permissive shortcuts that let untyped
+    // code slip into the build. `allowJs: false` forces every source file
+    // to be TypeScript; `noImplicitAny: true` requires explicit `any`
+    // annotations so accidental implicit-any parameters are caught at
+    // compile time, not surfaced as runtime type errors.
+    "allowJs": false,
+    "noImplicitAny": true,
+    // `skipLibCheck: true` stays — this is the Next.js-recommended default.
+    // Disabling it would slow the type-check dramatically AND surface minor
+    // issues in third-party @types packages we don't control.
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "noImplicitAny": false,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",

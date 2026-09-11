@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ReactNode } from 'react';
 
 /**
  * Defers rendering of children until they are about to enter the viewport.
@@ -8,7 +8,7 @@ import { useState, useEffect, useRef } from 'react';
  * just before the user scrolls to it — improving initial page weight.
  * Shows a skeleton placeholder while not yet visible.
  */
-export function LazySection({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+export function LazySection({ children, className = '' }: { children: ReactNode; className?: string }) {
   const [visible, setVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {

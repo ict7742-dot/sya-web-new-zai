@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({
@@ -14,7 +15,7 @@ export const metadata = {
 export default function AdminLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className={`${inter.variable} font-sans min-h-screen bg-[#070B14] text-[#E8EBF2] antialiased`}>

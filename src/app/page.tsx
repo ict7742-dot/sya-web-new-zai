@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react';
 import {
   ArrowRight,
   ArrowUpRight,
@@ -526,7 +526,7 @@ export default function HomePage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const name = fNameRef.current?.value || '';
     const phone = fPhoneRef.current?.value || '';

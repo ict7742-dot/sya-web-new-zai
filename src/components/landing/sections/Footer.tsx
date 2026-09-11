@@ -1,7 +1,5 @@
 'use client';
 
-import { LazySection } from '@/components/landing/lazy-section';
-
 interface FooterProps {
   navLinks: readonly string[];
   navLabels: Record<string, string>;
