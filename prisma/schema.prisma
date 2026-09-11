@@ -63,3 +63,27 @@ model NewsletterSubscriber {
   @@index([createdAt])
   @@index([unsubscribeToken])
 }
+
+/// A revocable admin session. The random session token is sent to the client
+/// as an httpOnly cookie; only its scrypt hash is persisted here. Sessions can
+/// be revoked individually (logout) or in bulk ("log out everywhere"). They
+/// also expire automatically after 7 days, but expired rows are not actively
+/// purged — they're cheap and a small audit trail.
+model AdminSession {
+  id         String    @id @default(cuid())
+  /// scrypt-hashed session token (hex). Unique so we can look up by hash on
+  /// every authenticated request. The raw token NEVER lives in the DB.
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime  // 7 days after createdAt
+  /// Null while the session is active. Set the moment the user logs out or is
+  /// force-revoked. Subsequent requests with this cookie must fail.
+  revokedAt  DateTime?
+  /// Best-effort audit fields. IP and UA can be empty in serverless if the
+  /// platform doesn't forward headers, so they're nullable.
+  ip         String?
+  userAgent  String?
+
+  @@index([expiresAt])
+  @@index([revokedAt])
+}

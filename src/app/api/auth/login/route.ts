@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeEqual } from 'crypto';
-import { ADMIN_COOKIE, adminCookieOptions } from '@/lib/auth';
+import { ADMIN_COOKIE, adminCookieOptions, createSession } from '@/lib/auth';
 
 // Per-IP rate limit for login attempts (prevents brute-force).
 const loginLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -24,32 +23,26 @@ function getClientIp(req: NextRequest): string {
   return 'unknown';
 }
 
-function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) {
-    timingSafeEqual(bufB, bufB);
-    return false;
-  }
-  return timingSafeEqual(bufA, bufB);
-}
-
 /**
  * POST /api/auth/login
  * Body: { "password": "..." }
  *
- * Validates the password against ADMIN_SECRET using a constant-time comparison.
- * On success, sets an httpOnly cookie with the token and returns 200.
- * On failure, returns 401 without revealing whether the secret is configured.
+ * Validates the password against ADMIN_SECRET using a constant-time comparison
+ * (inside `createSession`). On success, mints a new revocable session: a
+ * 256-bit random token is hashed with scrypt, the hash is persisted to
+ * AdminSession, and the RAW token is set in an httpOnly cookie. The
+ * ADMIN_SECRET itself never leaves the server — and a DB compromise can't
+ * leak live sessions because the raw tokens are unrecoverable from the hashes.
  *
- * Rate-limited to 10 attempts/minute/IP to prevent brute-force attacks.
+ * On failure, returns a generic 401 without revealing whether the secret is
+ * configured. Rate-limited to 10 attempts/minute/IP.
  */
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   if (isRateLimited(ip)) {
     return NextResponse.json(
       { error: 'Too many attempts. Please wait a moment.' },
-      { status: 429 }
+      { status: 429 },
     );
   }
 
@@ -61,19 +54,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request.' }, { status: 400 });
   }
 
-  const secret = process.env.ADMIN_SECRET;
-  if (!secret) {
-    // Fail-closed but return a generic 401 so the absence of a configured
-    // secret isn't leaked to the client.
+  const token = await createSession(password, {
+    ip,
+    userAgent: request.headers.get('user-agent'),
+  });
+
+  if (!token) {
+    // Wrong password — OR — no ADMIN_SECRET configured. Same response either
+    // way so an attacker can't distinguish the two cases.
     return NextResponse.json({ error: 'Invalid password.' }, { status: 401 });
   }
 
-  if (!safeEqual(password, secret)) {
-    return NextResponse.json({ error: 'Invalid password.' }, { status: 401 });
-  }
-
-  // Set the httpOnly cookie and return success.
   const res = NextResponse.json({ success: true });
-  res.cookies.set(ADMIN_COOKIE, secret, adminCookieOptions);
+  res.cookies.set(ADMIN_COOKIE, token, adminCookieOptions);
   return res;
 }

@@ -32,20 +32,19 @@ function isSafeImageUrl(url: string | null | undefined): boolean {
   }
 }
 
-// GET /api/blogs — PUBLIC, returns published posts (no content field)
+// GET /api/blogs — PUBLIC, returns PUBLISHED posts only (no content field).
+// SECURITY: the `published` filter is hard-coded to true and is NOT
+// controllable via query string. Drafts are never exposed on the public
+// surface — admins must use /api/admin/blogs (auth-gated) for draft access.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const published = searchParams.get('published');
     const limitParam = searchParams.get('limit');
     const category = searchParams.get('category');
 
     const limit = Math.min(Math.max(parseInt(limitParam || '6', 10) || 6, 1), 100);
 
-    const where: Record<string, unknown> = {};
-    if (published === null || published === 'true') {
-      where.published = true;
-    }
+    const where: Record<string, unknown> = { published: true };
     if (category) {
       where.category = category;
     }
@@ -77,7 +76,7 @@ export async function GET(request: NextRequest) {
 
 // POST /api/blogs — ADMIN, creates a new blog post
 export async function POST(request: NextRequest) {
-  if (!verifyAdmin(request)) {
+  if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

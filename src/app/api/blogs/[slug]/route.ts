@@ -28,7 +28,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 // PUT /api/blogs/[slug] — ADMIN, updates a blog post
 export async function PUT(request: NextRequest, context: RouteContext) {
-  if (!verifyAdmin(request)) {
+  if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -64,7 +64,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 // DELETE /api/blogs/[slug] — ADMIN, deletes a blog post
 export async function DELETE(request: NextRequest, context: RouteContext) {
-  if (!verifyAdmin(request)) {
+  if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

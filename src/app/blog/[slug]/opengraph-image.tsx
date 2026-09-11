@@ -12,7 +12,13 @@ export const revalidate = 3600;
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const post = await db.blogPost.findUnique({ where: { slug } });
+  // SECURITY: only generate OG images for published posts. Draft slugs that
+  // happen to be crawled (link shared before publish, or guessed) get the
+  // generic "Insights" fallback rather than leaking draft titles/authors.
+  const post = await db.blogPost.findFirst({
+    where: { slug, published: true },
+    select: { title: true, category: true, author: true },
+  });
 
   const title = post?.title ?? 'Insights';
   const category = post?.category ?? 'General';

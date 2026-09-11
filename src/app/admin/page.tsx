@@ -342,7 +342,7 @@ export default function AdminPage() {
     setBlogsLoading(true);
     setBlogsError('');
     try {
-      const res = await fetch('/api/blogs?published=false&limit=50');
+      const res = await fetch('/api/admin/blogs');
       if (!res.ok) throw new Error('Failed to fetch blogs');
       const data = await res.json();
       setBlogs(data);

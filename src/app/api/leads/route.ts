@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
 // GET endpoint for admin (count + recent leads) — requires Bearer token auth
 export async function GET(request: NextRequest) {
-  if (!verifyAdmin(request)) {
+  if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 // GET /api/newsletter — ADMIN, returns subscriber count + recent subscribers.
 // Supports ?format=csv for export. Public POST above stays unauthenticated.
 export async function GET(request: NextRequest) {
-  if (!verifyAdmin(request)) {
+  if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
