@@ -992,12 +992,29 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Newsletter card */
 .newsletter-card {
+  position: relative;
   border-radius: 16px;
   padding: 32px;
-  background:
-    linear-gradient(135deg, rgba(226,177,92,0.06), rgba(53,212,154,0.03)),
-    rgba(255,255,255,0.02);
-  border: 1px solid rgba(226,177,92,0.15);
+  background: rgba(12, 19, 34, 0.55);
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.37), inset 0 1px 0 rgba(255,255,255,0.04);
+  overflow: hidden;
+}
+.newsletter-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, #F0CD8F, #E2B15C, #B98A3B);
+  opacity: 0.5;
+}
+.newsletter-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 18% 0%, rgba(226,177,92,0.08), transparent 60%);
+  pointer-events: none;
 }
 @media (max-width: 640px) {
   .newsletter-card { padding: 24px 20px; }
@@ -1064,7 +1081,7 @@ a.blog-card-cat:hover {
   transform: translateY(-1px);
 }
 
-/* ══════════ Command palette (Cmd/Ctrl+K) ══════════ */
+/* ══════════ Command palette (Cmd/Ctrl+K) — cf-* glassmorphic ══════════ */
 .cmdk-overlay {
   position: fixed;
   inset: 0;
@@ -1073,7 +1090,7 @@ a.blog-card-cat:hover {
   align-items: flex-start;
   justify-content: center;
   padding: 12vh 16px 16px;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(5, 7, 13, 0.75);
   backdrop-filter: blur(8px);
   animation: cmdkFadeIn .15s ease-out;
 }
@@ -1084,10 +1101,21 @@ a.blog-card-cat:hover {
   max-width: 600px;
   border-radius: 16px;
   border: 1px solid rgba(226, 177, 92, 0.18);
-  background: rgba(12, 19, 34, 0.96);
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.04);
+  background: rgba(12, 19, 34, 0.55);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255,255,255,0.04);
   overflow: hidden;
   animation: cmdkSlideIn .2s cubic-bezier(.22,1,.36,1);
+  position: relative;
+}
+.cmdk-modal::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(90deg, #F0CD8F, #E2B15C, #B98A3B);
+  opacity: 0.5;
+  z-index: 1;
 }
 @keyframes cmdkSlideIn {
   from { opacity: 0; transform: translateY(-12px) scale(0.98); }
@@ -1099,7 +1127,9 @@ a.blog-card-cat:hover {
   align-items: center;
   gap: 12px;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(226, 177, 92, 0.12);
+  position: relative;
+  z-index: 2;
 }
 .cmdk-input {
   flex: 1;
@@ -1116,18 +1146,19 @@ a.blog-card-cat:hover {
   height: 22px;
   padding: 0 7px;
   border-radius: 5px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(255,255,255,0.04);
-  color: #98A2B8;
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  background: rgba(226, 177, 92, 0.06);
+  color: #E2B15C;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
-  font-family: var(--font-geist-mono), monospace;
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
 }
 
-.cmdk-body { max-height: 60vh; overflow-y: auto; }
+.cmdk-body { max-height: 60vh; overflow-y: auto; position: relative; z-index: 2; }
 .cmdk-body::-webkit-scrollbar { width: 6px; }
-.cmdk-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.cmdk-body::-webkit-scrollbar-thumb { background: rgba(226, 177, 92, 0.25); border-radius: 3px; }
+.cmdk-body::-webkit-scrollbar-thumb:hover { background: rgba(226, 177, 92, 0.45); }
 
 .cmdk-section { padding: 18px 20px; }
 .cmdk-section-label {
@@ -1147,15 +1178,16 @@ a.blog-card-cat:hover {
   border-radius: 999px;
   font-size: 13px;
   color: #98A2B8;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(12, 19, 34, 0.55);
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  backdrop-filter: blur(8px);
   transition: all .15s;
   cursor: pointer;
 }
 .cmdk-suggestion:hover {
-  color: #E2B15C;
+  color: #F0CD8F;
   border-color: rgba(226,177,92,0.4);
-  background: rgba(226,177,92,0.06);
+  background: rgba(226,177,92,0.08);
 }
 
 .cmdk-empty {
@@ -1177,10 +1209,12 @@ a.blog-card-cat:hover {
   border-radius: 10px;
   text-align: left;
   cursor: pointer;
-  transition: background .12s;
+  transition: background .12s, border-color .12s;
+  border: 1px solid transparent;
 }
 .cmdk-result-active {
   background: rgba(226, 177, 92, 0.08);
+  border-color: rgba(226, 177, 92, 0.2);
 }
 .cmdk-result-icon {
   flex-shrink: 0;
@@ -1193,10 +1227,12 @@ a.blog-card-cat:hover {
   background: rgba(255,255,255,0.03);
   border: 1px solid rgba(255,255,255,0.06);
   color: #E2B15C;
+  transition: all .15s;
 }
 .cmdk-result-active .cmdk-result-icon {
   background: rgba(226,177,92,0.12);
   border-color: rgba(226,177,92,0.3);
+  box-shadow: 0 0 12px rgba(226,177,92,0.25);
 }
 .cmdk-result-text { flex: 1; min-width: 0; }
 .cmdk-result-title {
@@ -1231,8 +1267,10 @@ a.blog-card-cat:hover {
   justify-content: space-between;
   gap: 12px;
   padding: 11px 16px;
-  border-top: 1px solid rgba(255,255,255,0.08);
-  background: rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(226, 177, 92, 0.12);
+  background: rgba(5, 7, 13, 0.4);
+  position: relative;
+  z-index: 2;
 }
 .cmdk-full-search {
   display: inline-flex;
@@ -1260,31 +1298,32 @@ a.blog-card-cat:hover {
   height: 18px;
   padding: 0 4px;
   border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.03);
-  font-family: var(--font-geist-mono), monospace;
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  background: rgba(226, 177, 92, 0.06);
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
   font-size: 10px;
-  color: #98A2B8;
+  color: #E2B15C;
 }
 
-/* Visible search trigger button (used in headers) */
+/* Visible search trigger button (used in headers) — cf-* glassmorphic */
 .cmdk-trigger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 12px 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  background: rgba(12, 19, 34, 0.55);
+  backdrop-filter: blur(12px) saturate(1.4);
   color: #98A2B8;
   font-size: 13px;
   cursor: pointer;
   transition: all .15s;
 }
 .cmdk-trigger:hover {
-  border-color: rgba(226,177,92,0.35);
-  color: #E2B15C;
-  background: rgba(226,177,92,0.05);
+  border-color: rgba(226,177,92,0.45);
+  color: #F0CD8F;
+  background: rgba(226,177,92,0.08);
 }
 .cmdk-trigger kbd {
   display: inline-flex;
@@ -1293,11 +1332,11 @@ a.blog-card-cat:hover {
   padding: 0 5px;
   margin-left: 2px;
   border-radius: 4px;
-  border: 1px solid rgba(255,255,255,0.12);
-  background: rgba(0,0,0,0.3);
-  font-family: var(--font-geist-mono), monospace;
+  border: 1px solid rgba(226, 177, 92, 0.18);
+  background: rgba(226, 177, 92, 0.06);
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
   font-size: 10px;
-  color: #98A2B8;
+  color: #E2B15C;
 }
 
 @media (max-width: 640px) {
@@ -1316,7 +1355,11 @@ a.blog-card-cat:hover {
   font-weight: 600;
 }
 
-/* ══════════ Popular Posts widget ══════════ */
+/* ══════════ Popular Posts widget — DEPRECATED ══════════
+   The .popular-widget CSS is no longer used. PopularPosts.tsx now renders
+   inline cf-* classes (bg-cf-glass + backdrop-blur-glass + gold top-edge +
+   ranked badges). The legacy CSS below is kept for reference but applies to
+   nothing. Remove once confirmed no other file references it. */
 .popular-widget {
   border-radius: 14px;
   border: 1px solid rgba(255, 255, 255, 0.07);

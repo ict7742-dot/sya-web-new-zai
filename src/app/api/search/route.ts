@@ -65,8 +65,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Postgres ILIKE search across all text fields. Split the query into
-    // terms and require each term to match somewhere (AND logic) for relevance.
+    // Case-insensitive substring search across all text fields. Split the query
+    // into terms and require each term to match somewhere (AND logic) for
+    // relevance.
     //
     // NOTE (audit response): the audit flagged this as "unindexed contains
     // scans". At our scale (~10-50 blog posts), a full table scan on a 5-field
@@ -77,18 +78,31 @@ export async function GET(request: NextRequest) {
     // explicit decision. Rate limiting above closes the "flood the DB" half
     // of the audit finding.
     //
-    // Switched from plain `contains` to explicit `mode: 'insensitive'` for
-    // Postgres ILIKE behavior (real UX improvement — 'NIFTY' matches 'nifty').
+    // Provider-agnostic: `mode: 'insensitive'` is a Postgres-only Prisma
+    // feature (it maps to ILIKE). SQLite — used for local sandbox dev when
+    // Docker/Postgres is unavailable — rejects `mode` entirely with a
+    // PrismaClientValidationError, breaking search. SQLite's default `LIKE`
+    // is already case-insensitive for ASCII, so omitting `mode` there gives
+    // the same UX. The committed schema.prisma stays `provider = "postgresql"`;
+    // this guard just makes the route work in both environments.
     const terms = query.split(/\s+/).filter(Boolean);
+    // Detect the active provider from the datasource URL. Postgres URLs start
+    // with `postgres://` or `postgresql://`; SQLite uses `file:`.
+    const dbUrl = process.env.DATABASE_URL ?? '';
+    const isPostgres = dbUrl.startsWith('postgres://') || dbUrl.startsWith('postgresql://');
+    const textContains = (term: string) =>
+      isPostgres
+        ? { contains: term, mode: 'insensitive' as const }
+        : { contains: term };
     const where = {
       published: true,
       AND: terms.map((term) => ({
         OR: [
-          { title: { contains: term, mode: 'insensitive' as const } },
-          { excerpt: { contains: term, mode: 'insensitive' as const } },
-          { content: { contains: term, mode: 'insensitive' as const } },
-          { category: { contains: term, mode: 'insensitive' as const } },
-          { author: { contains: term, mode: 'insensitive' as const } },
+          { title: textContains(term) },
+          { excerpt: textContains(term) },
+          { content: textContains(term) },
+          { category: textContains(term) },
+          { author: textContains(term) },
         ],
       })),
     };

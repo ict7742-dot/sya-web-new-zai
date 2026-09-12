@@ -54,14 +54,16 @@ export function Newsletter({
             : 'flex flex-col items-center gap-3 py-4 text-center'
         }
       >
-        <CheckCircle2 className="h-7 w-7 text-[#35D49A]" />
-        <p className="text-[15px] font-medium text-[#E8EBF2]">{message}</p>
-        <p className="text-xs text-[#525C70]">
+        <span className="mx-auto w-14 h-14 rounded-full border border-cf-emerald/40 bg-cf-emerald/10 flex items-center justify-center text-cf-emerald">
+          <CheckCircle2 className="w-7 h-7" />
+        </span>
+        <p className="text-[15px] font-medium text-cf-text-strong">{message}</p>
+        <p className="text-xs text-cf-text-muted">
           Every email includes a one-click unsubscribe link. We never share your address.
         </p>
         <button
           onClick={() => setStatus('idle')}
-          className="mt-1 text-xs text-[#98A2B8] underline-offset-2 hover:text-[#E2B15C] hover:underline"
+          className="mt-1 text-xs text-cf-mist underline-offset-2 hover:text-cf-gold hover:underline transition-colors duration-160"
         >
           Subscribe another email
         </button>
@@ -69,10 +71,13 @@ export function Newsletter({
     );
   }
 
+  const inputClass =
+    'w-full rounded-md border border-cf-glass-border bg-cf-glass py-3 pl-10 pr-4 text-[14.5px] text-cf-text outline-none transition-all duration-240 ease-cinematic placeholder:text-cf-text-muted focus:border-cf-gold focus:ring-2 focus:ring-cf-gold/20';
+
   const form = (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row">
       <div className="relative flex-1">
-        <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#525C70]" />
+        <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-cf-text-muted" />
         <input
           type="email"
           required
@@ -80,13 +85,13 @@ export function Newsletter({
           onChange={(e) => setEmail(e.target.value)}
           placeholder="your@email.com"
           aria-label="Email address"
-          className="w-full rounded-md border border-white/10 bg-white/[0.03] py-3 pl-10 pr-4 text-[14.5px] text-[#EDEFF5] outline-none transition-colors placeholder:text-[#525C70] focus:border-[#E2B15C]/60 focus:bg-white/[0.05]"
+          className={inputClass}
         />
       </div>
       <button
         type="submit"
         disabled={status === 'loading'}
-        className="btn btn-primary inline-flex items-center justify-center gap-2 whitespace-nowrap disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 whitespace-nowrap px-6 py-3 rounded-md bg-cf-gold-gradient text-cf-bg font-semibold text-[14px] transition-all duration-240 ease-cinematic hover:-translate-y-0.5 hover:shadow-glow-gold disabled:opacity-60 disabled:translate-y-0 disabled:cursor-not-allowed"
       >
         {status === 'loading' ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -104,7 +109,7 @@ export function Newsletter({
       <div>
         {form}
         {status === 'error' && message && (
-          <p className="mt-2 text-xs text-[#F0555F]">{message}</p>
+          <p className="mt-2 text-xs text-cf-crimson">{message}</p>
         )}
       </div>
     );
@@ -113,19 +118,19 @@ export function Newsletter({
   return (
     <div className="newsletter-card">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#E2B15C]/10 ring-1 ring-[#E2B15C]/25">
-          <Mail className="h-5 w-5 text-[#E2B15C]" />
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cf-gold/10 border border-cf-gold/30">
+          <Mail className="h-5 w-5 text-cf-gold" />
         </div>
         <div>
-          <h3 className="font-[family-name:var(--font-fraunces)] text-lg font-semibold text-[#E8EBF2]">
+          <h3 className="font-display font-normal text-[24px] leading-none tracking-[-0.01em] text-cf-text-strong">
             {heading}
           </h3>
         </div>
       </div>
-      <p className="mb-5 text-sm leading-relaxed text-[#98A2B8]">{subheading}</p>
+      <p className="mb-5 text-sm leading-relaxed text-cf-mist">{subheading}</p>
       {form}
       {status === 'error' && message && (
-        <p className="mt-2 text-xs text-[#F0555F]">{message}</p>
+        <p className="mt-2 text-xs text-cf-crimson">{message}</p>
       )}
     </div>
   );
