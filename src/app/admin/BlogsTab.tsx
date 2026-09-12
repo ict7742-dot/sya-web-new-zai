@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2, Eye as EyeIcon } from 'lucide-react';
 import {
   formatDate,
   emptyBlogForm,
@@ -153,7 +153,7 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.07]">
-                  {['Title', 'Slug', 'Category', 'Status', 'Date', 'Actions'].map((h) => (
+                  {['Title', 'Slug', 'Category', 'Status', 'Views', 'Date', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-cf-mist whitespace-nowrap"
@@ -185,6 +185,12 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
                         }`}
                       >
                         {post.published ? <><Eye size={11} /> Published</> : <><EyeOff size={11} /> Draft</>}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1 text-cf-mist font-data tabular-nums text-xs">
+                        <Eye size={12} className="text-cf-gold/60" />
+                        {post.views.toLocaleString('en-IN')}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{formatDate(post.createdAt)}</td>

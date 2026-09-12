@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Users, Download, Loader2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, Download, Loader2, Filter, X } from 'lucide-react';
 import {
   formatDate,
   getWeekStart,
@@ -21,21 +21,45 @@ interface LeadsTabProps {
   onToast: (message: string, type: 'success' | 'error') => void;
 }
 
+type InterestFilter = 'all' | 'account' | 'courses' | 'both';
+type DateFilter = 'all' | '7d' | '30d' | 'month' | 'week';
+
+const DATE_FILTERS: Array<{ id: DateFilter; label: string }> = [
+  { id: 'all', label: 'All time' },
+  { id: '7d', label: 'Last 7 days' },
+  { id: '30d', label: 'Last 30 days' },
+  { id: 'month', label: 'This month' },
+  { id: 'week', label: 'This week' },
+];
+
+const INTEREST_FILTERS: Array<{ id: InterestFilter; label: string }> = [
+  { id: 'all', label: 'All interests' },
+  { id: 'account', label: 'Open Demat' },
+  { id: 'courses', label: 'Courses' },
+  { id: 'both', label: 'Account + Courses' },
+];
+
 /**
- * Leads tab — Phase 12d extraction.
+ * Leads tab — Phase 12d extraction + round-7 filters.
  *
  * Owns its own leads state + fetch + CSV export. The parent only passes the
  * initial data (prefetched on login) + callbacks.
  *
+ * Round-7 filters: interest + date-range refine the displayed table AND the
+ * CSV export (the export fetches the full CSV from the API, then filters
+ * client-side before download — no API changes needed).
+ *
  * Cinematic Finance: glassmorphic stat cards (gold top-edge + glow + hover
- * lift), glassmorphic leads table, cf-* pills for interest, JetBrains Mono
- * for the date column.
+ * lift), glassmorphic filter bar, glassmorphic leads table, cf-* pills for
+ * interest, JetBrains Mono for the date column.
  */
 export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }: LeadsTabProps) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [totalLeads, setTotalLeads] = useState(initialTotal);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [interestFilter, setInterestFilter] = useState<InterestFilter>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -55,25 +79,75 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
   }, [onUnauthorized]);
 
   useEffect(() => {
-    // Refresh on mount (in case data is stale from the parent's login-time fetch)
     fetchLeads();
   }, [fetchLeads]);
 
+  /** Compute the date cutoff for the active date filter. */
+  const dateCutoff = useMemo((): Date | null => {
+    const now = new Date();
+    switch (dateFilter) {
+      case '7d': return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case '30d': return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'month': return getMonthStart();
+      case 'week': return getWeekStart();
+      default: return null;
+    }
+  }, [dateFilter]);
+
+  /** Filtered leads — refined by both interest + date. */
+  const filteredLeads = useMemo(() => {
+    return leads.filter((l) => {
+      if (interestFilter !== 'all' && l.interest !== interestFilter) return false;
+      if (dateCutoff && new Date(l.createdAt) < dateCutoff) return false;
+      return true;
+    });
+  }, [leads, interestFilter, dateCutoff]);
+
+  const hasFilters = interestFilter !== 'all' || dateFilter !== 'all';
+  const clearFilters = () => { setInterestFilter('all'); setDateFilter('all'); };
+
+  /** Export CSV — fetches the full CSV from the API, then filters client-side
+   *  so the downloaded file respects the active interest + date filters. */
   const exportCsv = async () => {
     try {
       const res = await fetch('/api/leads?format=csv');
       if (res.status === 401) { onUnauthorized(); return; }
       if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
+      const fullCsv = await res.text();
+      // Parse the CSV (simple split — the CSV is well-formed with safeCsvCell
+      // escaping). First line is the header; remaining lines are rows.
+      const lines = fullCsv.split('\n');
+      const header = lines[0];
+      const dataRows = lines.slice(1).filter(Boolean);
+      // Find the column indices for Interest (idx 3) + Submitted At (idx 12).
+      // The header order is fixed in the API: Name, Phone, Email, Interest,
+      // Message, Source, UTM Source, UTM Medium, UTM Campaign, UTM Term,
+      // UTM Content, Landing Page, Submitted At.
+      const INTEREST_IDX = 3;
+      const DATE_IDX = 12;
+      const filteredRows = dataRows.filter((row) => {
+        const cols = parseCsvRow(row);
+        const interest = cols[INTEREST_IDX] ?? '';
+        const dateStr = cols[DATE_IDX] ?? '';
+        if (interestFilter !== 'all' && interest !== interestFilter) return false;
+        if (dateCutoff) {
+          const d = new Date(dateStr);
+          if (isNaN(d.getTime()) || d < dateCutoff) return false;
+        }
+        return true;
+      });
+      const filteredCsv = [header, ...filteredRows].join('\n');
+      const blob = new Blob([filteredCsv], { type: 'text/csv; charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sya-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+      const suffix = hasFilters ? `-${interestFilter}-${dateFilter}` : '';
+      a.download = `sya-leads${suffix}-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      onToast('CSV exported successfully!', 'success');
+      onToast(`Exported ${filteredRows.length} lead${filteredRows.length !== 1 ? 's' : ''}.`, 'success');
     } catch {
       onToast('Failed to export CSV.', 'error');
     }
@@ -89,6 +163,9 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
     { label: "This Week's Leads", value: thisWeekCount, icon: Users },
     { label: "This Month's Leads", value: thisMonthCount, icon: Users },
   ];
+
+  const selectClass =
+    'bg-cf-glass border border-cf-glass-border rounded-md px-3 py-2 text-sm text-cf-text outline-none focus:border-cf-gold focus:ring-2 focus:ring-cf-gold/20 transition-all duration-240 ease-cinematic cursor-pointer';
 
   return (
     <div className="animate-cf-reveal-up">
@@ -112,23 +189,65 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
         ))}
       </div>
 
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <p className="text-xs text-cf-mist">
-          Showing most recent {leads.length} lead{leads.length !== 1 ? 's' : ''}.{' '}
-          <button onClick={exportCsv} className="text-cf-gold hover:underline">
-            Export CSV
-          </button>{' '}
-          for full list.
-        </p>
-        <button
-          onClick={exportCsv}
-          className="inline-flex items-center gap-2 bg-cf-gold-gradient text-cf-bg font-semibold rounded-md px-4 py-2 hover:-translate-y-0.5 hover:shadow-glow-gold transition-all duration-240 ease-cinematic text-sm self-start sm:self-auto"
-        >
-          <Download size={15} />
-          Export CSV
-        </button>
+      {/* Filter bar — interest + date-range + clear + export */}
+      <div className="relative rounded-xl bg-cf-glass backdrop-blur-glass border border-cf-glass-border shadow-glass overflow-hidden mb-4 p-4">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-40" />
+        <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cf-mist">
+              <Filter size={13} className="text-cf-gold" /> Filter
+            </span>
+            <select
+              value={interestFilter}
+              onChange={(e) => setInterestFilter(e.target.value as InterestFilter)}
+              className={selectClass}
+              aria-label="Filter by interest"
+            >
+              {INTEREST_FILTERS.map((f) => (
+                <option key={f.id} value={f.id} className="bg-cf-bg-elevated text-cf-text">{f.label}</option>
+              ))}
+            </select>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as DateFilter)}
+              className={selectClass}
+              aria-label="Filter by date range"
+            >
+              {DATE_FILTERS.map((f) => (
+                <option key={f.id} value={f.id} className="bg-cf-bg-elevated text-cf-text">{f.label}</option>
+              ))}
+            </select>
+            {hasFilters && (
+              <button
+                onClick={clearFilters}
+                className="inline-flex items-center gap-1 text-xs text-cf-mist hover:text-cf-gold transition-colors duration-160"
+              >
+                <X size={13} /> Clear
+              </button>
+            )}
+          </div>
+          <button
+            onClick={exportCsv}
+            className="inline-flex items-center gap-2 bg-cf-gold-gradient text-cf-bg font-semibold rounded-md px-4 py-2 hover:-translate-y-0.5 hover:shadow-glow-gold transition-all duration-240 ease-cinematic text-sm self-start lg:self-auto"
+          >
+            <Download size={15} />
+            Export {hasFilters ? 'filtered' : 'CSV'}
+          </button>
+        </div>
       </div>
+
+      {/* Result count */}
+      <p className="mb-4 text-xs text-cf-mist">
+        {loading ? 'Loading…' : (
+          <>
+            Showing <span className="text-cf-text font-data tabular-nums">{filteredLeads.length}</span>
+            {' '}of{' '}
+            <span className="text-cf-text font-data tabular-nums">{leads.length}</span>
+            {' '}lead{filteredLeads.length !== 1 ? 's' : ''}
+            {hasFilters && ' (filtered)'}
+          </>
+        )}
+      </p>
 
       {/* Table */}
       {loading ? (
@@ -138,8 +257,15 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
         </div>
       ) : error ? (
         <div className="bg-cf-crimson/10 border border-cf-crimson/30 rounded-lg p-4 text-sm text-cf-crimson">{error}</div>
-      ) : leads.length === 0 ? (
-        <div className="text-center py-12 text-cf-mist text-sm">No leads yet.</div>
+      ) : filteredLeads.length === 0 ? (
+        <div className="text-center py-12 text-cf-mist text-sm">
+          {hasFilters ? 'No leads match the active filters.' : 'No leads yet.'}
+          {hasFilters && (
+            <button onClick={clearFilters} className="block mx-auto mt-2 text-cf-gold hover:underline text-xs">
+              Clear filters
+            </button>
+          )}
+        </div>
       ) : (
         <div className="relative rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden">
           <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-50" />
@@ -158,7 +284,7 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
                 </tr>
               </thead>
               <tbody>
-                {leads.map((lead, i) => (
+                {filteredLeads.map((lead, i) => (
                   <tr
                     key={`${lead.phone}-${i}`}
                     className="border-b border-white/[0.04] last:border-b-0 hover:bg-cf-gold/[0.04] transition-colors duration-160"
@@ -186,4 +312,28 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
       )}
     </div>
   );
+}
+
+/** Parse a single CSV row into columns. Handles quoted fields with embedded
+ *  commas (safeCsvCell wraps fields containing commas/quotes in double quotes
+ *  + escapes internal quotes by doubling them). */
+function parseCsvRow(row: string): string[] {
+  const cols: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (row[i + 1] === '"') { cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += ch;
+    } else {
+      if (ch === ',') { cols.push(cur); cur = ''; }
+      else if (ch === '"') inQuotes = true;
+      else cur += ch;
+    }
+  }
+  cols.push(cur);
+  return cols;
 }

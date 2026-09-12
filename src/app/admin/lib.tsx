@@ -28,6 +28,7 @@ export interface BlogPost {
   category: string;
   author: string;
   published: boolean;
+  views: number;
   createdAt: string;
   updatedAt: string;
 }
