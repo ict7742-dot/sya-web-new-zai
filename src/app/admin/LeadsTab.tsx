@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Download, Loader2, Filter, X, ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
+import { Users, Download, Loader2, Filter, X, ChevronDown, Phone, Mail, MessageCircle, Search } from 'lucide-react';
 import {
   formatDate,
   getWeekStart,
@@ -60,6 +60,8 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
   const [error, setError] = useState('');
   const [interestFilter, setInterestFilter] = useState<InterestFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  /** Text search across name / email / phone. Empty string = no text filter. */
+  const [searchQuery, setSearchQuery] = useState('');
   /** Index (into filteredLeads) of the expanded lead row, or null if none. */
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
@@ -96,17 +98,22 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
     }
   }, [dateFilter]);
 
-  /** Filtered leads — refined by both interest + date. */
+  /** Filtered leads — refined by interest + date + text search. */
   const filteredLeads = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     return leads.filter((l) => {
       if (interestFilter !== 'all' && l.interest !== interestFilter) return false;
       if (dateCutoff && new Date(l.createdAt) < dateCutoff) return false;
+      if (q) {
+        const haystack = `${l.name} ${l.email} ${l.phone}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
       return true;
     });
-  }, [leads, interestFilter, dateCutoff]);
+  }, [leads, interestFilter, dateCutoff, searchQuery]);
 
-  const hasFilters = interestFilter !== 'all' || dateFilter !== 'all';
-  const clearFilters = () => { setInterestFilter('all'); setDateFilter('all'); setExpandedIdx(null); };
+  const hasFilters = interestFilter !== 'all' || dateFilter !== 'all' || searchQuery.trim() !== '';
+  const clearFilters = () => { setInterestFilter('all'); setDateFilter('all'); setSearchQuery(''); setExpandedIdx(null); };
 
   /** Export CSV — fetches the full CSV from the API, then filters client-side
    *  so the downloaded file respects the active interest + date filters. */
@@ -121,12 +128,16 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
       const lines = fullCsv.split('\n');
       const header = lines[0];
       const dataRows = lines.slice(1).filter(Boolean);
-      // Find the column indices for Interest (idx 3) + Submitted At (idx 12).
-      // The header order is fixed in the API: Name, Phone, Email, Interest,
-      // Message, Source, UTM Source, UTM Medium, UTM Campaign, UTM Term,
-      // UTM Content, Landing Page, Submitted At.
+      // Find the column indices for Name (idx 0), Phone (idx 1), Email (idx 2),
+      // Interest (idx 3) + Submitted At (idx 12). The header order is fixed in
+      // the API: Name, Phone, Email, Interest, Message, Source, UTM Source,
+      // UTM Medium, UTM Campaign, UTM Term, UTM Content, Landing Page, Submitted At.
+      const NAME_IDX = 0;
+      const PHONE_IDX = 1;
+      const EMAIL_IDX = 2;
       const INTEREST_IDX = 3;
       const DATE_IDX = 12;
+      const q = searchQuery.trim().toLowerCase();
       const filteredRows = dataRows.filter((row) => {
         const cols = parseCsvRow(row);
         const interest = cols[INTEREST_IDX] ?? '';
@@ -135,6 +146,10 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
         if (dateCutoff) {
           const d = new Date(dateStr);
           if (isNaN(d.getTime()) || d < dateCutoff) return false;
+        }
+        if (q) {
+          const haystack = `${cols[NAME_IDX] ?? ''} ${cols[EMAIL_IDX] ?? ''} ${cols[PHONE_IDX] ?? ''}`.toLowerCase();
+          if (!haystack.includes(q)) return false;
         }
         return true;
       });
@@ -219,6 +234,18 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
                 <option key={f.id} value={f.id} className="bg-cf-bg-elevated text-cf-text">{f.label}</option>
               ))}
             </select>
+            {/* Text search — name / email / phone */}
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-cf-text-muted" />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search name, email, phone…"
+                aria-label="Search leads by name, email, or phone"
+                className="w-full bg-cf-glass border border-cf-glass-border rounded-md pl-9 pr-3 py-2 text-sm text-cf-text outline-none transition-all duration-240 ease-cinematic placeholder:text-cf-text-muted focus:border-cf-gold focus:ring-2 focus:ring-cf-gold/20"
+              />
+            </div>
             {hasFilters && (
               <button
                 onClick={clearFilters}

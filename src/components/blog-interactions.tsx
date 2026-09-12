@@ -207,3 +207,22 @@ export function BackToTop() {
     </button>
   );
 }
+
+/**
+ * ViewTracker — fires a POST /api/blogs/[slug]/view on mount so the blog
+ * detail page's Server Component can stay a pure read (ISR-cacheable,
+ * `revalidate: 60`). The previous fire-and-forget db.update inside the Server
+ * Component made the page dynamic (uncacheable).
+ *
+ * Client-side tracking also correctly skips bots that don't execute JS, so view
+ * counts reflect real readers. Renders nothing (returns null). Uses a void
+ * promise + no error surfacing — a view-tracking failure must never break the
+ * reading experience.
+ */
+export function ViewTracker({ slug }: { slug: string }) {
+  useEffect(() => {
+    // fire-and-forget — no await, no state, no error handling
+    void fetch(`/api/blogs/${encodeURIComponent(slug)}/view`, { method: 'POST' });
+  }, [slug]);
+  return null;
+}
