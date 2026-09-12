@@ -1,39 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, type FormEvent } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   ArrowRight,
-  ArrowUpRight,
   ArrowUp,
-  ShieldCheck,
-  BadgeCheck,
-  GraduationCap,
-  Cpu,
-  Headphones,
-  IndianRupee,
-  Receipt,
-  UserCheck,
-  Code2,
   Zap,
-  Mail,
-  Phone,
-  MapPin,
-  Clock,
   CheckCircle2,
   X,
   Menu,
-  ChevronDown,
-  Star,
-  MessageCircle,
-  BookOpen,
-  FileText,
-  ChevronUp,
   Cookie,
 } from 'lucide-react';
 import { SearchTrigger } from '@/components/search-trigger';
 import { LazySection } from '@/components/landing/lazy-section';
-import { ToastItem, type ToastData } from '@/components/landing/toast-item';
-import { ChartSVG } from '@/components/landing/chart-svg';
+import { ToastItem } from '@/components/landing/toast-item';
 import { FAQ } from '@/components/landing/sections/FAQ';
 import { Footer } from '@/components/landing/sections/Footer';
 import { HowItWorks } from '@/components/landing/sections/HowItWorks';
@@ -41,26 +20,20 @@ import { TrustStrip } from '@/components/landing/sections/TrustStrip';
 import { Testimonials } from '@/components/landing/sections/Testimonials';
 import { TickerBar } from '@/components/landing/sections/TickerBar';
 import { Hero } from '@/components/landing/sections/Hero';
+import { BrokingServices } from '@/components/landing/sections/BrokingServices';
+import { Courses } from '@/components/landing/sections/Courses';
+import { BlogPreview } from '@/components/landing/sections/BlogPreview';
+import { ContactForm } from '@/components/landing/sections/ContactForm';
+import { StickyCTA } from '@/components/landing/sections/StickyCTA';
 import {
-  captureUtm,
-  getStoredUtm,
-  saveAbandonment,
   clearAbandonment,
-  loadAbandonment,
-  SYMBOLS,
-  // INITIAL_TICKERS + TickerItem type moved into the TickerBar section
-  // component (Phase 9.2 extraction).
-  TESTIMONIALS,
+  // captureUtm/getStoredUtm/saveAbandonment/loadAbandonment + SYMBOLS +
+  // CURRICULUM + UtmData/Candle/SymbolData/SeriesData types ALL moved into
+  // their section components (Hero/Courses/ContactForm/TickerBar — Phases
+  // 9.1/9.2/9.5/9.10). TESTIMONIALS lives in Testimonials.tsx now.
   SOCIAL_PROOFS,
-  CURRICULUM,
   LEGAL,
-  type UtmData,
-  type Candle,
-  type SymbolData,
-  type SeriesData,
-  // TickerItem moved into the TickerBar section component (Phase 9.2).
 } from '@/lib/landing-data';
-import { mulberry32, inr, genSeries } from '@/lib/chart-utils';
 
 export default function HomePage() {
   /* ── State ── */
@@ -69,50 +42,43 @@ export default function HomePage() {
   const [activeSection, setActiveSection] = useState('home');
   // Chart state (activeSym, seriesMap, flashClass, volJitter) moved into
   // the Hero section component (Phase 9.1 extraction).
-  const [formSubmitted, setFormSubmitted] = useState(false);
-  const [submitterName, setSubmitterName] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submittedInterest, setSubmittedInterest] = useState('');
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  // Form state (formSubmitted, submitterName, submitting, submittedInterest,
+  // formErrors, selectFlash) + all form refs + handlers moved into the
+  // ContactForm section component (Phase 9.10 extraction). The parent now
+  // drives the form via an `interest` trigger object (kind + nonce) so repeat
+  // clicks on the same CTA still re-fire the focus/select effect.
+  const [interestTrigger, setInterestTrigger] = useState<{ kind: string; nonce: number }>({ kind: '', nonce: 0 });
   const [modalOpen, setModalOpen] = useState(false);
   const [modalKey, setModalKey] = useState('privacy');
   const [toasts, setToasts] = useState<{ id: number; msg: string; ok: boolean }[]>([]);
-  const [selectFlash, setSelectFlash] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const [showMobileCta, setShowMobileCta] = useState(false);
 
   /* ── Refs ── */
-  // Chart refs moved into the Hero section component (Phase 9.1).
-  const formRef = useRef<HTMLFormElement>(null);
-  const fNameRef = useRef<HTMLInputElement>(null);
-  const fPhoneRef = useRef<HTMLInputElement>(null);
-  const fEmailRef = useRef<HTMLInputElement>(null);
-  const fInterestRef = useRef<HTMLSelectElement>(null);
-
-  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  // Chart refs + form refs (formRef, fNameRef, fPhoneRef, fEmailRef,
+  // fInterestRef) + mobileMenuRef ALL moved/removed into their section
+  // components (Phase 9.1 / 9.10). The mobile menu now animates via CSS
+  // max-h classes — no ref needed.
   const reducedMotion = useRef(
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : false
   );
   const toastId = useRef(0);
-  const spIndex = useRef(Math.floor(Math.random() * SOCIAL_PROOFS.length));
+  // spIndex starts at 0 (deterministic — avoids calling Math.random() during
+  // render, which the react-compiler lint rule forbids). The random start
+  // offset is applied inside the social-proof effect below.
+  const spIndex = useRef(0);
   const [socialProof, setSocialProof] = useState<{ name: string; loc: string; action: string; mins: number } | null>(null);
   const [exitOpen, setExitOpen] = useState(false);
   const exitShown = useRef(false);
   const [cookieConsent, setCookieConsent] = useState<'accepted' | 'declined' | null>(null);
-  const [openCurriculum, setOpenCurriculum] = useState<string | null>(null);
-  const utmRef = useRef<UtmData>({ utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: '' });
-  const [blogPosts, setBlogPosts] = useState<Array<{id: string; slug: string; title: string; excerpt: string | null; coverImage: string | null; category: string; author: string; createdAt: string; updatedAt: string}>>([]);
-
-  /* ── Fetch blog posts ── */
-  useEffect(() => {
-    fetch('/api/blogs?limit=3')
-      .then((res) => res.json())
-      .then((data) => { if (Array.isArray(data)) setBlogPosts(data); })
-      .catch(() => { /* silently fail */ });
-  }, []);
+  // openCurriculum state moved into the Courses section component (Phase 9.5
+  // extraction — the flip cards own their own flip state).
+  // utmRef + captureUtm() effect moved into the ContactForm section component
+  // (Phase 9.10 — UTM is only consumed by the lead submit handler).
+  // blogPosts state + /api/blogs?limit=3 fetch effect moved into the
+  // BlogPreview section component (Phase 9.9 extraction).
 
   // Chart helpers + derived values + render-chart/live-tick/VOL-jitter effects
   // ALL moved into the Hero section component (Phase 9.1 extraction).
@@ -121,6 +87,8 @@ export default function HomePage() {
   /* ── Social proof notifications ── */
   useEffect(() => {
     if (reducedMotion.current) return;
+    // Randomize the starting index INSIDE the effect (not during render).
+    spIndex.current = Math.floor(Math.random() * SOCIAL_PROOFS.length);
     // Show first one after 8s, then every 25-40s
     const delay = 8000;
     const show = () => {
@@ -147,13 +115,16 @@ export default function HomePage() {
     return () => document.removeEventListener('mouseleave', handler);
   }, [modalOpen]);
 
+  /* ── Mobile menu height — handled via CSS max-h classes (no ref read /
+     setState-in-effect needed). The menu animates between max-h-0 and
+     max-h-[80vh] on toggle. */
+
   /* ── Header scroll + progress + back-to-top + mobile CTA ── */
   useEffect(() => {
     const handler = () => {
       const y = window.scrollY;
       setHeaderScrolled(y > 8);
       setShowBackToTop(y > 600);
-      setShowMobileCta(y > 500);
       const docH = document.documentElement.scrollHeight - window.innerHeight;
       setScrollProgress(docH > 0 ? Math.min(1, y / docH) : 0);
     };
@@ -209,10 +180,9 @@ export default function HomePage() {
      global observer is no longer needed — there are no other [data-count]
      elements on the page outside TrustStrip. */
 
-  /* ── UTM capture on mount ── */
-  useEffect(() => {
-    utmRef.current = captureUtm();
-  }, []);
+  /* ── UTM capture on mount ──
+     Moved into the ContactForm section component (Phase 9.10 — UTM is only
+     consumed by the lead submit handler, which also moved there). */
 
   /* ── Cookie consent check ── */
   useEffect(() => {
@@ -233,40 +203,9 @@ export default function HomePage() {
     if (choice === 'declined') clearAbandonment();
   }, []);
 
-  /* ── Restore abandoned form data ── */
-  useEffect(() => {
-    const saved = loadAbandonment();
-    if (!saved) return;
-    if (fNameRef.current && saved.name) fNameRef.current.value = saved.name;
-    if (fPhoneRef.current && saved.phone) fPhoneRef.current.value = saved.phone;
-    if (fEmailRef.current && saved.email) fEmailRef.current.value = saved.email;
-    if (fInterestRef.current && saved.interest) fInterestRef.current.value = saved.interest;
-    if (saved.message) {
-      const msgEl = document.getElementById('fMsg') as HTMLTextAreaElement | null;
-      if (msgEl) msgEl.value = saved.message;
-    }
-    // Show a subtle toast about restored data
-    addToast('We restored your previous form entries.', true);
-  }, []);
-
-  /* ── Save form data on input (abandonment tracking) ── */
-  const trackFormInput = useCallback(() => {
-    const data: Record<string, string> = {};
-    if (fNameRef.current?.value) data.name = fNameRef.current.value;
-    if (fPhoneRef.current?.value) data.phone = fPhoneRef.current.value;
-    if (fEmailRef.current?.value) data.email = fEmailRef.current.value;
-    if (fInterestRef.current?.value) data.interest = fInterestRef.current.value;
-    const msgEl = document.getElementById('fMsg') as HTMLTextAreaElement | null;
-    if (msgEl?.value) data.message = msgEl.value;
-    if (Object.keys(data).length > 0) saveAbandonment(data);
-  }, []);
-
-  /* ── Save on page unload ── */
-  useEffect(() => {
-    const handler = () => trackFormInput();
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [trackFormInput]);
+  /* ── Form abandonment tracking (restore + trackFormInput + beforeunload) ──
+     ALL moved into the ContactForm section component (Phase 9.10 — these
+     handlers reference the form refs that now live there). */
 
   /* ── Ticker price flicker ──
      Phase 9.2: moved into the TickerBar section component. */
@@ -315,16 +254,14 @@ export default function HomePage() {
   /* ── CTA handler ── */
   const handleInterest = useCallback(
     (kind: string, label: string) => {
-      if (fInterestRef.current) {
-        fInterestRef.current.value = kind;
-        setSelectFlash(true);
-        setTimeout(() => setSelectFlash(false), 2200);
-      }
+      // Set the interest trigger (kind + nonce) — ContactForm owns the select
+      // ref + focus-ring flash now; it reacts to this prop change and focuses
+      // the name field after the smooth-scroll settles.
+      setInterestTrigger({ kind, nonce: Date.now() });
       setMobileOpen(false);
       document
         .getElementById('contact')
         ?.scrollIntoView({ behavior: reducedMotion.current ? 'auto' : 'smooth' });
-      setTimeout(() => fNameRef.current?.focus({ preventScroll: true }), 700);
       if (label)
         addToast(
           `Noted — "${label}". Share your details and we'll take it from here.`
@@ -333,117 +270,8 @@ export default function HomePage() {
     [addToast]
   );
 
-  /* ── Form validation ── */
-  const setErr = (field: string, msg: string | null) => {
-    setFormErrors((prev) => {
-      const next = { ...prev };
-      if (msg) next[field] = msg;
-      else delete next[field];
-      return next;
-    });
-    // Also toggle .err on input
-    const elMap: Record<string, HTMLInputElement | HTMLSelectElement | null> = {
-      name: fNameRef.current,
-      phone: fPhoneRef.current,
-      email: fEmailRef.current,
-      interest: fInterestRef.current,
-    };
-    const el = elMap[field];
-    if (el) {
-      if (msg) el.classList.add('err');
-      else el.classList.remove('err');
-    }
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const name = fNameRef.current?.value || '';
-    const phone = fPhoneRef.current?.value || '';
-    const email = fEmailRef.current?.value || '';
-    const interest = fInterestRef.current?.value || '';
-
-    let ok = true;
-    if (name.trim().length < 3) {
-      setErr('name', 'Please enter your full name.');
-      ok = false;
-    } else setErr('name', null);
-
-    const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10 || !/^[6-9]\d{9}$/.test(digits.slice(-10))) {
-      setErr('phone', 'Enter a valid 10-digit Indian mobile number.');
-      ok = false;
-    } else setErr('phone', null);
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim())) {
-      setErr('email', 'Enter a valid email address.');
-      ok = false;
-    } else setErr('email', null);
-
-    if (!interest) {
-      setErr('interest', 'Please choose an option.');
-      ok = false;
-    } else setErr('interest', null);
-
-    if (!ok) {
-      addToast('Please fix the highlighted fields.', false);
-      return;
-    }
-
-    // Hybrid form system: save to database + conditional eKYC redirect
-    setSubmitting(true);
-
-    try {
-      const utm = getStoredUtm();
-      const res = await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          phone,
-          email: email.trim(),
-          interest,
-          message: (document.getElementById('fMsg') as HTMLTextAreaElement | null)?.value || '',
-          ...utm,
-        }),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.fields) {
-          Object.entries(data.fields).forEach(([field, msg]) => setErr(field, msg as string));
-          addToast('Please fix the highlighted fields.', false);
-        } else {
-          addToast(data.error || 'Something went wrong. Please try again.', false);
-        }
-        setSubmitting(false);
-        return;
-      }
-
-      setSubmitterName(data.firstName);
-      setSubmittedInterest(data.interest);
-      setFormSubmitted(true);
-      clearAbandonment();
-      addToast('Inquiry received — we usually respond within a few hours.');
-
-      // Redirect to Angel One eKYC for account/both interests
-      if (data.ekycUrl) {
-        setTimeout(() => {
-          window.open(data.ekycUrl, '_blank', 'noopener,noreferrer');
-        }, 1200);
-      }
-    } catch {
-      addToast('Network error — please check your connection and try again.', false);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const resetForm = () => {
-    formRef.current?.reset();
-    setFormSubmitted(false);
-    setSubmittedInterest('');
-    setFormErrors({});
-  };
+  // Form validation (setErr) + submit handler (handleSubmit) + resetForm moved
+  // into the ContactForm section component (Phase 9.10 extraction).
 
   // Chart-derived values (chg, pct, up, sma, above) moved into Hero (Phase 9.1).
 
@@ -477,7 +305,7 @@ export default function HomePage() {
       {/* ══════════ STICKY NAV ══════════ */}
       <header
         id="siteHeader"
-        className={`sticky top-0 z-50 border-b border-white/[0.06] bg-ink/80 backdrop-blur-md transition-all ${headerScrolled ? 'scrolled' : ''}`}
+        className={`sticky top-0 z-50 transition-all duration-240 ease-cinematic ${headerScrolled ? 'bg-cf-bg-elevated/85 backdrop-blur-glass backdrop-saturate-glass border-b border-cf-glass-border shadow-glass' : 'bg-cf-bg/40 backdrop-blur-md border-b border-transparent'}`}
       >
         <nav
           className="wrap h-[70px] flex items-center justify-between gap-6"
@@ -499,7 +327,7 @@ export default function HomePage() {
               <span className="block text-[15px] font-semibold tracking-tight">
                 Systematic Yield
               </span>
-              <span className="block text-[9px] font-medium tracking-[0.24em] text-mist uppercase">
+              <span className="block text-[9px] font-medium tracking-[0.24em] text-cf-mist uppercase">
                 Analysts · Angel One Partner
               </span>
             </span>
@@ -521,13 +349,13 @@ export default function HomePage() {
             <SearchTrigger className="hidden sm:inline-flex" />
             <button
               onClick={() => handleInterest('account', 'Demat account onboarding')}
-              className="btn btn-primary hidden sm:inline-flex !py-2.5 !px-5 !text-[13px]"
+              className="hidden sm:inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-cf-gold-gradient text-cf-bg font-semibold text-[13px] transition-all duration-240 ease-cinematic hover:-translate-y-0.5 hover:shadow-glow-gold"
             >
               Open Demat Account
             </button>
             <button
               onClick={() => setMobileOpen((o) => !o)}
-              className="lg:hidden w-10 h-10 flex items-center justify-center border border-white/15 rounded-md"
+              className="lg:hidden w-10 h-10 flex items-center justify-center border border-cf-gold/30 rounded-md text-cf-text hover:border-cf-gold/60 transition-colors duration-160"
               aria-label="Toggle menu"
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -537,10 +365,8 @@ export default function HomePage() {
 
         {/* Mobile menu */}
         <div
-          ref={mobileMenuRef}
           id="mobileMenu"
-          className="lg:hidden border-t border-white/[0.06] bg-ink2/95 backdrop-blur-md"
-          style={{ maxHeight: mobileOpen ? mobileMenuRef.current?.scrollHeight + 'px' : '0px' }}
+          className={`lg:hidden border-t border-white/[0.06] bg-ink2/95 backdrop-blur-md overflow-hidden transition-[max-height] duration-240 ease-cinematic ${mobileOpen ? 'max-h-[80vh]' : 'max-h-0'}`}
         >
           <div className="wrap py-2 flex flex-col">
             {navLinks.map((id) => (
@@ -580,282 +406,20 @@ export default function HomePage() {
             consistent with the Phase 6 AggregateRating JSON-LD removal. */}
         <TrustStrip />
 
-        {/* ══════════ BROKING SERVICES ══════════ */}
-        <section id="demat" className="sec bg-ink2/50">
-          <div className="wrap grid lg:grid-cols-2 gap-14 lg:gap-20 items-start">
-            {/* Left: benefits */}
-            <div>
-              <p className="eyebrow reveal">01 · Partner Desk</p>
-              <h2 className="reveal d1 font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                Why Open Your Account With Us?
-              </h2>
-              <p className="reveal d2 mt-4 text-mist text-[15px] leading-relaxed max-w-lg">
-                Anyone can issue you a login. As an Authorized Partner of Angel One, we pair India&apos;s most trusted
-                broking platform with a local desk that actually picks up the phone.
-              </p>
+        {/* ══════════ BROKING SERVICES ══════════
+            Phase 9.4: extracted to src/components/landing/sections/BrokingServices.tsx
+            (Cinematic Finance rewrite — glassmorphic pricing term sheet with
+            gradient gold border, 2-col glass benefit mini-cards, Bebas Neue
+            heading, pulsing onboarding CTA, 80ms staggered reveal). */}
+        <BrokingServices onSelectInterest={handleInterest} />
 
-              <div className="reveal d2 mt-10 divide-y divide-white/[0.08] border-y border-white/[0.08]">
-                {[
-                  { icon: IndianRupee, title: 'Zero brokerage on equity delivery', desc: 'Buy and hold across NSE & BSE without brokerage eating into your returns. Delivery trades stay completely free.' },
-                  { icon: Receipt, title: 'Flat ₹20 on intraday & F&O', desc: 'One flat fee per executed order — or 0.03% of turnover, whichever is lower. No hidden slabs, no percentage surprises.' },
-                  { icon: UserCheck, title: 'Personalized portfolio guidance', desc: 'A dedicated partner who reviews your allocations with you every quarter — and tells you when the right move is to do nothing.' },
-                  { icon: Code2, title: 'API & algo trading support', desc: 'Build on Angel One SmartAPI with hand-holding from our quant team — from your first automated signal to full deployment.' },
-                  { icon: Zap, title: 'Seamless digital onboarding', desc: '100% paperless e-KYC with e-Sign and DigiLocker. Most accounts are trade-ready within 24 hours.' },
-                ].map((item) => (
-                  <div key={item.title} className="flex gap-5 py-6 group">
-                    <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors">
-                      <item.icon className="w-[19px] h-[19px]" />
-                    </span>
-                    <div>
-                      <h3 className="text-[15.5px] font-semibold">{item.title}</h3>
-                      <p className="text-[13.5px] text-mist mt-1.5 leading-relaxed">{item.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: pricing term sheet */}
-            <div className="reveal d1 lg:sticky lg:top-24">
-              <div className="relative">
-                <span className="tick tick-tl" aria-hidden="true" />
-                <span className="tick tick-tr" aria-hidden="true" />
-                <span className="tick tick-bl" aria-hidden="true" />
-                <span className="tick tick-br" aria-hidden="true" />
-
-                <div className="rounded-xl border border-white/10 bg-white/[0.02] p-7 md:p-9">
-                  <p className="text-[10.5px] font-semibold tracking-[0.22em] uppercase text-gold">Partner Pricing</p>
-                  <h3 className="font-serif font-medium text-[26px] mt-2">Brokerage, in plain numbers.</h3>
-
-                  <dl className="mt-7">
-                    {[
-                      { dt: 'Equity Delivery', dd: '₹0', sub: 'Hold as long as you like', gold: true },
-                      { dt: 'Intraday Equity', dd: '₹20', sub: 'Per executed order', gold: false },
-                      { dt: 'Futures & Options', dd: '₹20', sub: 'Per order, all segments', gold: false },
-                      { dt: 'Account Opening', dd: '₹0', sub: 'Paperless e-KYC', gold: true },
-                      { dt: 'Annual Maintenance', dd: '₹0', sub: 'First year, on accounts opened with us', gold: true },
-                    ].map((item, i, arr) => (
-                      <div key={item.dt} className={`flex items-baseline justify-between gap-4 py-4 ${i < arr.length - 1 ? 'border-b border-white/[0.08]' : ''}`}>
-                        <dt>
-                          <span className="text-[14px] text-white/85 font-medium">{item.dt}</span>
-                          <span className="block text-[11.5px] text-mist mt-0.5">{item.sub}</span>
-                        </dt>
-                        <dd className={`font-serif text-[26px] leading-none ${item.gold ? 'text-gold' : ''}`}>{item.dd}</dd>
-                      </div>
-                    ))}
-                  </dl>
-
-                  <p className="text-[10.5px] text-white/35 leading-relaxed mt-2">
-                    *Or 0.03% of turnover, whichever is lower, as per Angel One&apos;s published rate card. Statutory charges apply as per exchange &amp; SEBI norms.
-                  </p>
-
-                  <div className="mt-7 pt-7 border-t border-white/[0.08]">
-                    <p className="f-label">Documents you&apos;ll need</p>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {['PAN card', 'Aadhaar', 'Bank proof', 'Photo & signature'].map((doc) => (
-                        <span key={doc} className="text-[11.5px] px-3 py-1.5 rounded border border-white/10 text-white/70 bg-white/[0.03]">
-                          {doc}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => handleInterest('account', 'Demat account onboarding')}
-                    className="btn btn-primary w-full mt-8"
-                  >
-                    Start Paperless Onboarding <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ══════════ EDUCATION & ACADEMY ══════════ */}
-        <section id="courses" className="sec border-t border-white/[0.06]">
-          <div className="wrap">
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-              <div className="reveal">
-                <p className="eyebrow">02 · The Academy</p>
-                <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                  Stock Market Education Programs
-                </h2>
-              </div>
-              <p className="reveal d1 text-[13.5px] text-mist leading-relaxed max-w-md lg:text-right">
-                Small cohorts, live-market sessions, and mentors who trade what they teach.
-                Every program includes lifetime access to recordings and our trader community.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 mt-12">
-              {/* Card 1 — Foundations */}
-              <article className="reveal group relative flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-7 transition-colors duration-300 hover:border-gold/40">
-                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">01</span>
-                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Foundation</p>
-                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Beginner to Pro: Stock Market Basics</h3>
-                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
-                  From your first candlestick to a complete trading plan — the essentials of markets, instruments
-                  and risk, taught without jargon or hype.
-                </p>
-                <div className="flex flex-wrap gap-2 mt-5">
-                  {['Candlestick reading', 'Risk management', 'Fundamental analysis', 'Trading psychology'].map((tag) => (
-                    <span key={tag} className="text-[11px] px-2.5 py-1.5 rounded border border-white/10 text-white/70 bg-white/[0.03]">{tag}</span>
-                  ))}
-                </div>
-                <div className="mt-auto pt-6">
-                  <button
-                    onClick={() => setOpenCurriculum(openCurriculum === 'foundation' ? null : 'foundation')}
-                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    {openCurriculum === 'foundation' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
-                    {openCurriculum === 'foundation' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                  {openCurriculum === 'foundation' && (
-                    <div className="curriculum-panel mt-3">
-                      <div className="curriculum-list">
-                        {CURRICULUM.foundation.topics.map((t, ti) => (
-                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
-                        ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
-                        {CURRICULUM.foundation.outcomes.map((o, oi) => (
-                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11.5px] text-mist mt-4">6 weeks · Live online + Jaipur classroom · Hinglish</p>
-                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Next batch starts 15th Sept — <span className="font-semibold text-gold">4 seats left</span></p>
-                  <button
-                    onClick={() => handleInterest('courses', 'Beginner to Pro: Stock Market Basics')}
-                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
-                  >
-                    Enroll Now <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </article>
-
-              {/* Card 2 — Options & Derivatives (flagship) */}
-              <article className="reveal d1 group relative flex flex-col rounded-xl border border-gold/40 bg-gold/[0.03] p-6 md:p-7 transition-colors duration-300 hover:border-gold/70">
-                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">02</span>
-                <span className="absolute -top-3 left-6 bg-gold text-ink text-[9.5px] font-bold tracking-[0.18em] px-3 py-1 rounded">MOST ENROLLED</span>
-                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Advanced</p>
-                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Advanced Options &amp; Derivatives Trading</h3>
-                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
-                  Greeks, spreads and position sizing — taught on live markets. Learn to build, adjust and exit
-                  option structures with institutional discipline.
-                </p>
-                <svg viewBox="0 0 260 92" className="w-full h-auto mt-5" aria-hidden="true">
-                  <line x1="14" y1="46" x2="246" y2="46" stroke="rgba(255,255,255,0.14)" strokeDasharray="3 3" />
-                  <polyline points="24,14 130,64 236,14" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1.3" strokeDasharray="4 3" />
-                  <polyline points="24,30 130,80 236,30" fill="none" stroke="#E2B15C" strokeWidth="2" />
-                  <text x="14" y="11" fontSize="8.5" fill="rgba(255,255,255,0.4)">GROSS</text>
-                  <text x="246" y="42" fontSize="8.5" fill="#E2B15C" textAnchor="end">NET OF PREMIUM</text>
-                  <text x="130" y="90" fontSize="8" fill="rgba(255,255,255,0.35)" textAnchor="middle" letterSpacing="1">LONG STRADDLE — PAYOFF AT EXPIRY</text>
-                </svg>
-                <div className="mt-auto pt-6">
-                  <button
-                    onClick={() => setOpenCurriculum(openCurriculum === 'options' ? null : 'options')}
-                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    {openCurriculum === 'options' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
-                    {openCurriculum === 'options' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                  {openCurriculum === 'options' && (
-                    <div className="curriculum-panel mt-3">
-                      <div className="curriculum-list">
-                        {CURRICULUM.options.topics.map((t, ti) => (
-                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
-                        ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
-                        {CURRICULUM.options.outcomes.map((o, oi) => (
-                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11.5px] text-mist mt-4">8 weeks · Live market-hour sessions · Weekend batch</p>
-                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Weekend batch starting 20th Sept — <span className="font-semibold text-gold">2 seats left</span></p>
-                  <button
-                    onClick={() => handleInterest('courses', 'Advanced Options & Derivatives Trading')}
-                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
-                  >
-                    Enroll Now <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </article>
-
-              {/* Card 3 — Quant & Algo */}
-              <article className="reveal d2 group relative flex flex-col rounded-xl border border-white/[0.08] bg-white/[0.02] p-6 md:p-7 transition-colors duration-300 hover:border-gold/40 md:col-span-2 xl:col-span-1">
-                <span className="font-serif text-[58px] leading-none text-white/[0.05] absolute top-4 right-6 select-none group-hover:text-gold/20 transition-colors duration-500" aria-hidden="true">03</span>
-                <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-mist">Professional</p>
-                <h3 className="font-serif font-medium text-[21px] leading-snug mt-3 max-w-[85%]">Quantitative &amp; Algo Trading Mastery</h3>
-                <p className="text-[13.5px] text-mist leading-relaxed mt-3">
-                  Backtest, refine and deploy rule-based strategies with Python and Angel One SmartAPI.
-                  No prior coding experience assumed.
-                </p>
-                <div className="mt-5">
-                  <svg viewBox="0 0 260 80" className="w-full h-auto" aria-hidden="true">
-                    <path d="M4,64 L24,56 42,60 60,46 78,50 96,36 112,41 130,28 148,33 166,22 184,27 202,15 220,19 240,9 256,13 256,78 4,78 Z" fill="rgba(53,212,154,0.08)" />
-                    <path d="M4,64 L24,56 42,60 60,46 78,50 96,36 112,41 130,28 148,33 166,22 184,27 202,15 220,19 240,9 256,13" fill="none" stroke="#35D49A" strokeWidth="1.8" strokeLinejoin="round" />
-                    <text x="4" y="10" fontSize="8" fill="rgba(255,255,255,0.4)" letterSpacing="1">EQUITY CURVE — SAMPLE BACKTEST</text>
-                  </svg>
-                  <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px] tnum text-mist mt-3">
-                    <span>CAGR <span className="text-white">26.4%</span></span>
-                    <span>Max DD <span className="text-white">−8.2%</span></span>
-                    <span>Trades <span className="text-white">1,240</span></span>
-                    <span className="text-white/35">*illustrative lab results</span>
-                  </div>
-                </div>
-                <div className="mt-auto pt-6">
-                  <button
-                    onClick={() => setOpenCurriculum(openCurriculum === 'algo' ? null : 'algo')}
-                    className="w-full flex items-center justify-center gap-2 text-[12px] font-medium text-mist hover:text-gold transition-colors py-2"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    {openCurriculum === 'algo' ? 'Hide' : 'View'} Curriculum &amp; Outcomes
-                    {openCurriculum === 'algo' ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-                  {openCurriculum === 'algo' && (
-                    <div className="curriculum-panel mt-3">
-                      <div className="curriculum-list">
-                        {CURRICULUM.algo.topics.map((t, ti) => (
-                          <div key={ti} className="curriculum-item"><span className="curriculum-num">{String(ti + 1).padStart(2, '0')}</span><span>{t}</span></div>
-                        ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-white/[0.06]">
-                        <p className="text-[10.5px] font-semibold tracking-[0.16em] uppercase text-gold mb-2">By the end, you will:</p>
-                        {CURRICULUM.algo.outcomes.map((o, oi) => (
-                          <div key={oi} className="flex items-start gap-2 text-[12px] text-mist leading-relaxed mt-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-up shrink-0 mt-0.5" /><span>{o}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-[11.5px] text-mist mt-4">10 weeks · Includes live API lab · Cohort of 15</p>
-                  <p className="text-[11px] text-gold/80 mt-1.5 flex items-center gap-1.5"><Clock className="w-3 h-3" />Next cohort opens October — <span className="font-semibold text-gold">7 seats left</span></p>
-                  <button
-                    onClick={() => handleInterest('courses', 'Quantitative & Algo Trading Mastery')}
-                    className="mt-4 w-full flex items-center justify-center gap-2 border border-white/12 rounded-md py-3 text-[13.5px] font-medium transition-all hover:bg-gold hover:text-ink hover:border-gold"
-                  >
-                    Enroll Now <ArrowUpRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </article>
-            </div>
-          </div>
-        </section>
+        {/* ══════════ EDUCATION & ACADEMY ══════════
+            Phase 9.5: extracted to src/components/landing/sections/Courses.tsx
+            (Cinematic Finance rewrite — 3D Y-axis flip cards: hover/tap reveals
+            curriculum + outcomes on the back face; [perspective:1200px] +
+            preserve-3d + rotateY(180deg) + backface-hidden; duration-480
+            ease-cinematic flip; Bebas Neue heading; flagship gold ring). */}
+        <Courses onSelectInterest={handleInterest} />
 
         {/* ══════════ HOW IT WORKS ══════════
             Phase 9.6: extracted to src/components/landing/sections/HowItWorks.tsx
@@ -875,40 +439,51 @@ export default function HomePage() {
         </LazySection>
 
         <LazySection>
-        {/* ══════════ ABOUT US ══════════ */}
-        <section id="about" className="sec border-t border-white/[0.06] bg-ink2/50">
-          <div className="wrap">
-            <p className="eyebrow reveal">06 · About Us</p>
-            <div className="grid lg:grid-cols-12 gap-12 mt-5">
+        {/* ══════════ ABOUT US ══════════
+            Phase 9 page-level: cf-* token pass — Bebas Neue heading,
+            glassmorphic principle mini-cards, 80ms staggered reveal. */}
+        <section id="about" className="sec border-t border-white/[0.06] relative overflow-hidden">
+          <div
+            className="pointer-events-none absolute -top-20 left-10 w-[420px] h-[420px] rounded-full blur-3xl opacity-20 animate-cf-glow-drift"
+            style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.12), transparent 70%)' }}
+            aria-hidden="true"
+          />
+          <div className="wrap relative">
+            <p className="flex items-center gap-3 text-[11px] md:text-[12px] font-semibold uppercase tracking-[0.18em] text-cf-mist animate-cf-reveal-up">
+              <span className="block w-6 h-px bg-cf-gold opacity-70" />
+              06 · About Us
+            </p>
+            <div className="grid lg:grid-cols-12 gap-12 mt-6">
               <div className="lg:col-span-7">
-                <h2 className="reveal d1 font-serif font-medium text-[28px] sm:text-[34px] lg:text-[38px] leading-[1.16] tracking-[-0.01em]">
-                  A Jaipur desk that treats investing as a <em>process</em> — not a prediction.
+                <h2 className="font-display font-normal text-[44px] md:text-[64px] lg:text-[72px] leading-[0.96] tracking-[-0.01em] text-cf-text-strong animate-cf-reveal-up [animation-delay:80ms]">
+                  A Jaipur desk that treats investing as a <span className="bg-cf-gold-gradient bg-clip-text text-transparent">process</span> — not a prediction.
                 </h2>
-                <p className="reveal d2 mt-6 text-mist text-[15px] leading-relaxed">
+                <p className="mt-6 text-cf-mist text-[15px] leading-relaxed animate-cf-reveal-up [animation-delay:160ms]">
                   Systematic Yield Analysts Pvt. Ltd. runs on two wings of the same philosophy. As an Authorized
                   Partner of Angel One, we help investors access world-class broking infrastructure with local,
                   accountable guidance. As an academy, we train the next generation of market participants to
                   trade with rules, evidence and risk control — because we&apos;d rather build disciplined traders
                   than sell certainty.
                 </p>
-                <p className="reveal d2 mt-4 text-[15px] leading-relaxed text-white/85">
+                <p className="mt-4 text-[15px] leading-relaxed text-cf-text animate-cf-reveal-up [animation-delay:240ms]">
                   No tips. No pump groups. No guaranteed-return promises — those are red flags, and we say so plainly.
                 </p>
               </div>
-              <div className="lg:col-span-5 reveal d2">
-                <div className="border-t border-white/[0.08]">
-                  {[
-                    { num: '01', title: 'Risk before returns', desc: 'Position sizing and stop-losses are the first thing we teach — and the last thing we compromise.' },
-                    { num: '02', title: 'Process over predictions', desc: "If it can't be written as a rule and tested on data, it doesn't belong in your portfolio." },
-                    { num: '03', title: 'Education before execution', desc: 'We make sure you understand a trade before you\'re allowed to be convinced by one.' },
-                  ].map((p) => (
-                    <div key={p.num} className="py-5 border-b border-white/[0.08]">
-                      <p className="text-[10px] font-semibold tracking-[0.2em] text-gold uppercase">Principle {p.num}</p>
-                      <p className="text-[15px] font-semibold mt-1.5">{p.title}</p>
-                      <p className="text-[13px] text-mist mt-1 leading-relaxed">{p.desc}</p>
+              <div className="lg:col-span-5 space-y-4">
+                {[
+                  { num: '01', title: 'Risk before returns', desc: 'Position sizing and stop-losses are the first thing we teach — and the last thing we compromise.' },
+                  { num: '02', title: 'Process over predictions', desc: "If it can't be written as a rule and tested on data, it doesn't belong in your portfolio." },
+                  { num: '03', title: 'Education before execution', desc: 'We make sure you understand a trade before you\'re allowed to be convinced by one.' },
+                ].map((p, i) => (
+                  <div key={p.num} className={`group relative rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden transition-all duration-240 ease-cinematic hover:-translate-y-1 hover:border-cf-gold/40 animate-cf-reveal-up [animation-delay:${240 + i * 80}ms]`}>
+                    <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow opacity-0 group-hover:opacity-100 transition-opacity duration-240" />
+                    <div className="relative p-5">
+                      <p className="font-data text-[11px] font-semibold tracking-[0.2em] text-cf-gold uppercase">Principle {p.num}</p>
+                      <p className="text-[16px] font-semibold mt-1.5 text-cf-text-strong">{p.title}</p>
+                      <p className="text-[13px] text-cf-mist mt-1.5 leading-relaxed">{p.desc}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -922,237 +497,22 @@ export default function HomePage() {
         </LazySection>
 
 
-        {/* ══════════ BLOG / INSIGHTS ══════════ */}
-        <LazySection>
-        <section id="blog" className="sec border-t border-white/[0.06] bg-ink2/50">
-          <div className="wrap">
-            <div className="reveal">
-              <p className="eyebrow">07 · Insights</p>
-              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                Latest from Our <em>Desk</em>
-              </h2>
-              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-xl">
-                Market insights, trading strategies, and updates from the SYA team.
-              </p>
-            </div>
+        {/* ══════════ BLOG / INSIGHTS ══════════
+            Phase 9.9: extracted to src/components/landing/sections/BlogPreview.tsx
+            (Cinematic Finance rewrite — glassmorphic card grid, image zoom on
+            hover scale-1.05 duration-240 ease-cinematic, gradient overlay with
+            title/excerpt/author, Bebas Neue heading, 80ms staggered reveal.
+            Owns its own /api/blogs?limit=3 fetch — blogPosts state moved out of
+            page.tsx). */}
+        <BlogPreview />
 
-            {blogPosts.length === 0 ? (
-              <div className="mt-12 reveal d1">
-                <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-12 flex flex-col items-center justify-center text-center">
-                  <BookOpen className="w-10 h-10 text-white/20 mb-4" />
-                  <p className="text-[15px] text-mist">No posts yet. Check back soon for market insights from our team.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 mt-12 reveal d1">
-                {blogPosts.map((post, i) => (
-                  <a
-                    key={post.id}
-                    href={`/blog/${post.slug}`}
-                    className={`bg-white/[0.02] border border-white/[0.08] rounded-xl overflow-hidden hover:border-[#E2B15C]/30 hover:-translate-y-1 transition-all duration-300 reveal d${(i % 3) + 1} group`}
-                  >
-                    <div className="h-44 bg-white/[0.03] relative overflow-hidden">
-                      {post.coverImage ? (
-                        <img src={post.coverImage} alt="" className="w-full h-full object-cover opacity-70 group-hover:opacity-90 group-hover:scale-105 transition-all duration-500" loading="lazy" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <FileText className="w-10 h-10 text-white/[0.08]" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-ink/60 to-transparent" />
-                    </div>
-                    <div className="p-5">
-                      <p className="text-[10px] tracking-[0.16em] uppercase font-semibold text-[#E2B15C]">{post.category}</p>
-                      <h3 className="text-[17px] font-semibold text-white leading-snug line-clamp-2 mt-2 group-hover:text-[#E2B15C] transition-colors">{post.title}</h3>
-                      <p className="text-[13px] text-[#98A2B8] leading-relaxed line-clamp-3 mt-2">{post.excerpt || ''}</p>
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-white/[0.06]">
-                        <span className="text-[12px] text-[#98A2B8]">{post.author}</span>
-                        <span className="text-[11px] text-[#5F6981] tnum">{new Date(post.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-
-            {blogPosts.length > 0 && (
-              <div className="mt-10 reveal d2 text-center">
-                <a href="/blog" className="btn btn-ghost inline-flex">
-                  View all insights
-                  <ArrowRight className="w-4 h-4" />
-                </a>
-              </div>
-            )}
-          </div>
-        </section>
-        </LazySection>
-
-        {/* ══════════ CONTACT & LEAD FORM ══════════ */}
-        <section id="contact" className="sec border-t border-white/[0.06]">
-          <div className="wrap grid lg:grid-cols-2 gap-14 lg:gap-20 items-start">
-            {/* Left: contact info */}
-            <div className="reveal">
-              <p className="eyebrow">08 · Get in Touch</p>
-              <h2 className="font-serif font-medium text-[30px] sm:text-[38px] lg:text-[42px] leading-[1.12] tracking-[-0.01em] mt-5">
-                Talk to a human,<br />not a helpline.
-              </h2>
-              <p className="mt-4 text-mist text-[15px] leading-relaxed max-w-md">
-                Whether you&apos;re opening your first demat account or joining the next cohort — write, call, or walk in.
-                We typically respond within one business day.
-              </p>
-
-              <div className="mt-10 space-y-6">
-                <a href="mailto:connect@systematicyield.in" className="flex items-center gap-4 group">
-                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors"><Mail className="w-[18px] h-[18px]" /></span>
-                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Email</span><span className="block text-[14.5px] mt-0.5 group-hover:text-gold transition-colors">connect@systematicyield.in</span></span>
-                </a>
-                <a href="tel:+919829012345" className="flex items-center gap-4 group">
-                  {/* TODO: Replace with actual business phone number */}
-                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center group-hover:border-gold/50 transition-colors"><Phone className="w-[18px] h-[18px]" /></span>
-                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Phone</span><span className="block text-[14.5px] mt-0.5 tnum group-hover:text-gold transition-colors">+91 98290 12345</span></span>
-                </a>
-                <a href="https://wa.me/919829012345?text=Hi%20SYA%20team%2C%20I%20visited%20your%20website%20and%20would%20like%20to%20know%20more." target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 group">
-                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-[#25D366] flex items-center justify-center group-hover:border-[#25D366]/50 transition-colors">
-                    <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>
-                  </span>
-                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">WhatsApp</span><span className="block text-[14.5px] mt-0.5 group-hover:text-[#25D366] transition-colors">+91 98290 12345</span></span>
-                </a>
-                <div className="flex items-center gap-4">
-                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center"><MapPin className="w-[18px] h-[18px]" /></span>
-                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Office</span><span className="block text-[14.5px] mt-0.5 leading-snug">2nd Floor, Landmark Tower, Tonk Road,<br />Jaipur, Rajasthan 302015 · <a href="https://maps.google.com/?q=Landmark+Tower+Tonk+Road+Jaipur" target="_blank" rel="noopener noreferrer" className="hover:text-gold transition-colors">Visits by appointment</a></span></span>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="w-11 h-11 shrink-0 rounded-lg border border-white/10 text-gold flex items-center justify-center"><Clock className="w-[18px] h-[18px]" /></span>
-                  <span><span className="block text-[10.5px] tracking-[0.16em] uppercase text-mist font-semibold">Hours</span><span className="block text-[14.5px] mt-0.5">Monday – Saturday · 9:30 AM – 6:30 PM IST</span></span>
-                </div>
-              </div>
-
-              <div className="mt-10 border-l-2 border-gold/60 pl-5">
-                <p className="text-[13px] text-mist leading-relaxed">
-                  Opening an account? Keep your <span className="text-white">PAN, Aadhaar and a cancelled cheque</span> handy —
-                  paperless onboarding takes about 15 minutes over a call.
-                </p>
-              </div>
-            </div>
-
-            {/* Right: lead form */}
-            <div className="reveal d1">
-              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-6 md:p-8">
-                {!formSubmitted ? (
-                  <div id="formWrap">
-                    <h3 className="font-serif font-medium text-[22px]">Request a callback</h3>
-                    <p className="text-[12px] text-mist mt-1.5">Tell us a little about yourself — fields marked * are required.</p>
-
-                    <form ref={formRef} onSubmit={handleSubmit} noValidate className="mt-7 space-y-5">
-                      <div className="grid sm:grid-cols-2 gap-5">
-                        <div className="field">
-                          <label htmlFor="fName" className="f-label">Full Name *</label>
-                          <input
-                            ref={fNameRef}
-                            id="fName"
-                            type="text"
-                            className={`f-input ${formErrors.name ? 'err' : ''}`}
-                            placeholder="e.g. Rohan Sharma"
-                            autoComplete="name"
-                            onInput={() => { setErr('name', null); trackFormInput(); }}
-                          />
-                          <p className={`${formErrors.name ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.name || ''}</p>
-                        </div>
-                        <div className="field">
-                          <label htmlFor="fPhone" className="f-label">Phone Number *</label>
-                          <input
-                            ref={fPhoneRef}
-                            id="fPhone"
-                            type="tel"
-                            inputMode="tel"
-                            className={`f-input tnum ${formErrors.phone ? 'err' : ''}`}
-                            placeholder="10-digit mobile"
-                            autoComplete="tel"
-                            onInput={() => { setErr('phone', null); trackFormInput(); }}
-                          />
-                          <p className={`${formErrors.phone ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.phone || ''}</p>
-                        </div>
-                      </div>
-                      <div className="field">
-                        <label htmlFor="fEmail" className="f-label">Email *</label>
-                        <input
-                          ref={fEmailRef}
-                          id="fEmail"
-                          type="email"
-                          className={`f-input ${formErrors.email ? 'err' : ''}`}
-                          placeholder="you@example.com"
-                          autoComplete="email"
-                          onInput={() => { setErr('email', null); trackFormInput(); }}
-                        />
-                        <p className={`${formErrors.email ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.email || ''}</p>
-                      </div>
-                      <div className="field">
-                        <label htmlFor="fInterest" className="f-label">Interested In: *</label>
-                        <div className="relative">
-                          <select
-                            ref={fInterestRef}
-                            id="fInterest"
-                            className={`f-input appearance-none pr-10 ${selectFlash ? 'sel-flash' : ''} ${formErrors.interest ? 'err' : ''}`}
-                            onChange={() => { setErr('interest', null); trackFormInput(); }}
-                            defaultValue=""
-                          >
-                            <option value="" disabled>Select an option</option>
-                            <option value="account">Opening a Demat &amp; Trading Account</option>
-                            <option value="courses">Stock Market Education Programs</option>
-                            <option value="both">Both — Account + Courses</option>
-                          </select>
-                          <ChevronDown className="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-white/40 pointer-events-none" />
-                        </div>
-                        <p className={`${formErrors.interest ? '' : 'hidden'} text-[11.5px] text-down mt-1.5`}>{formErrors.interest || ''}</p>
-                      </div>
-                      <div className="field">
-                        <label htmlFor="fMsg" className="f-label">Message <span className="normal-case tracking-normal text-white/35">(optional)</span></label>
-                        <textarea
-                          id="fMsg"
-                          rows={3}
-                          className="f-input resize-none"
-                          placeholder="Anything specific you'd like to ask?"
-                          onInput={trackFormInput}
-                        />
-                      </div>
-
-                      <p className="text-[11px] text-white/40 leading-relaxed">
-                        By submitting, you authorize Systematic Yield Analysts to contact you via call, WhatsApp or email
-                        regarding our services. We never share your details with third parties.
-                      </p>
-
-                      <button type="submit" className="btn btn-primary w-full" disabled={submitting}>
-                        <span>{submitting ? 'Submitting…' : 'Submit Inquiry'}</span> {!submitting && <ArrowRight className="w-4 h-4" />}
-                      </button>
-                    </form>
-                  </div>
-                ) : (
-                  <div id="formSuccess" className="text-center py-10">
-                    <span className="mx-auto w-14 h-14 rounded-full border border-up/40 bg-up/10 flex items-center justify-center text-up">
-                      <CheckCircle2 className="w-7 h-7" />
-                    </span>
-                    <h4 className="font-serif font-medium text-[24px] mt-5">Inquiry received.</h4>
-                    <p className="text-[13.5px] text-mist mt-2.5 leading-relaxed max-w-sm mx-auto">
-                      Thank you, <span className="text-white">{submitterName}</span>. Our team will reach out within one business day.
-                      {submittedInterest !== 'courses' && (
-                        <>
-                          {' '}The Angel One eKYC page should open automatically — if not,{' '}
-                          <a href="https://angelone.in/?ref=systematicyield" target="_blank" rel="noopener noreferrer" className="text-gold hover:underline">click here to start onboarding</a>.
-                        </>
-                      )}
-                    </p>
-                    <button
-                      onClick={resetForm}
-                      className="btn btn-ghost mt-7 !py-2.5 !text-[13px]"
-                    >
-                      Submit another inquiry
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </section>
+        {/* ══════════ CONTACT & LEAD FORM ══════════
+            Phase 9.10: extracted to src/components/landing/sections/ContactForm.tsx
+            (Cinematic Finance rewrite — glassmorphic form panel with gold-gradient
+            focus rings, pulsing submit CTA animate-cf-pulse-cta, Bebas Neue
+            heading. ALL form state/refs/handlers/effects moved into the
+            component; parent passes an `interest` trigger + onToast callback). */}
+        <ContactForm interest={interestTrigger} onToast={addToast} />
       </main>
 
       {/* ══════════ REGULATORY FOOTER ══════════
@@ -1178,19 +538,21 @@ export default function HomePage() {
             className="absolute inset-0 bg-black/70 backdrop-blur-sm"
             onClick={() => setModalOpen(false)}
           />
-          <div className="relative w-full max-w-xl max-h-[80vh] flex flex-col rounded-xl border border-white/10 bg-ink2 shadow-2xl shadow-black/70">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08]">
-              <h3 className="font-serif font-medium text-[19px]">{LEGAL[modalKey].t}</h3>
+          <div className="relative w-full max-w-xl max-h-[80vh] flex flex-col rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-60" />
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
+            <div className="relative flex items-center justify-between px-6 py-4 border-b border-white/[0.07]">
+              <h3 className="font-display font-normal text-[28px] leading-none tracking-[-0.01em] text-cf-text-strong">{LEGAL[modalKey].t}</h3>
               <button
                 onClick={() => setModalOpen(false)}
-                className="w-9 h-9 flex items-center justify-center rounded-md border border-white/10 text-mist hover:text-white hover:border-white/30 transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-md border border-cf-glass-border text-cf-mist hover:text-cf-gold hover:border-cf-gold/50 transition-colors duration-160"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div
-              className="p-6 text-[13.5px] text-mist leading-relaxed space-y-3 overflow-y-auto"
+              className="relative p-6 text-[13.5px] text-cf-mist leading-relaxed space-y-3 overflow-y-auto cf-scroll"
               dangerouslySetInnerHTML={{ __html: LEGAL[modalKey].b }}
             />
           </div>
@@ -1209,8 +571,8 @@ export default function HomePage() {
         <div className="social-proof-toast visible" role="status" aria-live="polite">
           <span className="sp-check"><CheckCircle2 className="w-3.5 h-3.5" /></span>
           <span className="sp-text">
-            <span className="font-semibold text-white">{socialProof.name}</span>{' '}
-            <span className="text-mist">from {socialProof.loc} {socialProof.action} {'·'} {socialProof.mins} min ago</span>
+            <span className="font-semibold text-cf-text-strong">{socialProof.name}</span>{' '}
+            <span className="text-cf-mist">from {socialProof.loc} {socialProof.action} {'·'} {socialProof.mins} min ago</span>
           </span>
         </div>
       )}
@@ -1219,26 +581,28 @@ export default function HomePage() {
       {exitOpen && (
         <div className="fixed inset-0 z-[85] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Special offer">
           <div className="absolute inset-0 bg-black/75 backdrop-blur-sm" onClick={() => setExitOpen(false)} />
-          <div className="relative w-full max-w-md rounded-xl border border-gold/30 bg-ink2 shadow-2xl shadow-black/70 p-8 text-center">
-            <button onClick={() => setExitOpen(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-md border border-white/10 text-mist hover:text-white hover:border-white/30 transition-colors" aria-label="Close">
+          <div className="relative w-full max-w-md rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-gold/30 shadow-glass overflow-hidden p-8 text-center">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-60" />
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
+            <button onClick={() => setExitOpen(false)} className="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center rounded-md border border-cf-glass-border text-cf-mist hover:text-cf-gold hover:border-cf-gold/50 transition-colors duration-160" aria-label="Close">
               <X className="w-4 h-4" />
             </button>
-            <div className="mx-auto w-14 h-14 rounded-full border border-gold/40 bg-gold/10 flex items-center justify-center text-gold mb-5">
+            <div className="relative mx-auto w-14 h-14 rounded-full border border-cf-gold/40 bg-cf-gold/10 flex items-center justify-center text-cf-gold mb-5 shadow-glow-gold">
               <Zap className="w-7 h-7" />
             </div>
-            <h3 className="font-serif font-medium text-[24px] leading-snug">Wait - before you go.</h3>
-            <p className="text-[14px] text-mist mt-3 leading-relaxed">
+            <h3 className="relative font-display font-normal text-[32px] leading-tight text-cf-text-strong">Wait — before you go.</h3>
+            <p className="relative text-[14px] text-cf-mist mt-3 leading-relaxed">
               Most investors lose money because they start without a plan. Let us help you build one.
             </p>
-            <div className="flex flex-col gap-3 mt-7">
-              <button onClick={() => { setExitOpen(false); handleInterest('both', 'Account + Course Package'); }} className="btn btn-primary w-full">
+            <div className="relative flex flex-col gap-3 mt-7">
+              <button onClick={() => { setExitOpen(false); handleInterest('both', 'Account + Course Package'); }} className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-md bg-cf-gold-gradient text-cf-bg font-semibold text-[14px] transition-all duration-240 ease-cinematic hover:-translate-y-0.5 hover:shadow-glow-gold animate-cf-pulse-cta motion-reduce:[animation:none]">
                 Open Account + Get Course Access <ArrowRight className="w-4 h-4" />
               </button>
-              <button onClick={() => { setExitOpen(false); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }} className="btn btn-ghost w-full">
+              <button onClick={() => { setExitOpen(false); document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' }); }} className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-md border border-cf-gold/30 text-cf-text font-semibold text-[14px] transition-all duration-240 ease-cinematic hover:border-cf-gold/60 hover:text-cf-gold">
                 Just take me to the form
               </button>
             </div>
-            <p className="text-[11px] text-white/30 mt-5">Zero commitment. No spam. Talk to a real human first.</p>
+            <p className="relative text-[11px] text-cf-text-muted mt-5">Zero commitment. No spam. Talk to a real human first.</p>
           </div>
         </div>
       )}
@@ -1264,42 +628,32 @@ export default function HomePage() {
         <span className="whatsapp-tooltip">Chat with us on WhatsApp</span>
       </a>
 
-      {/* Sticky Mobile CTA Bar */}
-      <div className={`mobile-cta-bar ${showMobileCta ? 'visible' : ''}`}>
-        <button
-          onClick={() => handleInterest('account', 'Demat account onboarding')}
-          className="btn btn-primary flex-1 !py-3 !text-[13px]"
-        >
-          Open Demat Account
-        </button>
-        <a
-          href="#contact"
-          onClick={() => setMobileOpen(false)}
-          className="btn btn-ghost flex-1 !py-3 !text-[13px]"
-        >
-          Enquire Now
-        </a>
-      </div>
+      {/* ══════════ STICKY CTA BAR ══════════
+          Phase 9.11: extracted to src/components/landing/sections/StickyCTA.tsx
+          (Cinematic Finance rewrite — glassmorphic bar that snaps in past the
+          hero with duration-480 ease-snap, pulsing primary CTA, hides when the
+          contact form is in view). Replaces the legacy mobile-cta-bar. */}
+      <StickyCTA onSelectInterest={handleInterest} />
 
       {/* Cookie Consent Banner */}
       {cookieConsent === null && (
         <div className="cookie-banner" role="dialog" aria-label="Cookie consent">
           <div className="cookie-banner-inner">
-            <Cookie className="w-5 h-5 text-gold shrink-0 mt-0.5" />
-            <p className="text-[13px] text-mist leading-relaxed">
+            <Cookie className="w-5 h-5 text-cf-gold shrink-0 mt-0.5" />
+            <p className="text-[13px] text-cf-mist leading-relaxed">
               We use essential browser storage (localStorage) to save your form progress and preferences. No third-party tracking cookies are active.{' '}
-              <button onClick={() => { setModalKey('privacy'); setModalOpen(true); }} className="text-gold hover:underline">Learn more</button>
+              <button onClick={() => { setModalKey('privacy'); setModalOpen(true); }} className="text-cf-gold hover:underline">Learn more</button>
             </p>
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={() => handleCookieConsent('declined')}
-                className="btn btn-ghost !py-2 !px-4 !text-[12px]"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md border border-cf-gold/30 text-cf-text font-semibold text-[12px] transition-all duration-240 ease-cinematic hover:border-cf-gold/60 hover:text-cf-gold"
               >
                 Decline
               </button>
               <button
                 onClick={() => handleCookieConsent('accepted')}
-                className="btn btn-primary !py-2 !px-4 !text-[12px]"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-cf-gold-gradient text-cf-bg font-semibold text-[12px] transition-all duration-240 ease-cinematic hover:-translate-y-0.5 hover:shadow-glow-gold"
               >
                 Accept
               </button>

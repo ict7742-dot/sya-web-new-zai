@@ -24,7 +24,7 @@ export function ToastItem({ toast: t }: { toast: ToastData }) {
 
   return (
     <div data-toast-id={t.id} className="toast-item">
-      <span className={`mt-0.5 shrink-0 ${t.ok ? 'text-up' : 'text-down'}`}>
+      <span className={`mt-0.5 shrink-0 ${t.ok ? 'text-cf-emerald' : 'text-cf-crimson'}`}>
         {t.ok ? (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21.8 10A10 10 0 1 1 17 3.34" />
@@ -38,7 +38,7 @@ export function ToastItem({ toast: t }: { toast: ToastData }) {
           </svg>
         )}
       </span>
-      <span className="text-[13.5px] text-white/85 leading-snug">{t.msg}</span>
+      <span className="text-[13.5px] text-cf-text leading-snug">{t.msg}</span>
     </div>
   );
 }

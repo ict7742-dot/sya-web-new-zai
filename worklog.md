@@ -628,3 +628,24 @@ Verification:
   - Low: 5 → 4
 
 Commit: 133ddbc (local, not yet pushed — token expired)
+
+---
+## Phase 9.4–9.11 + page-level + design-system fix (session)
+
+**Sections extracted + redesigned (cf-* tokens):**
+- 9.4 BrokingServices.tsx — glassmorphic pricing term sheet (gradient gold top-edge + corner ticks + JetBrains Mono ₹ figures) + 2-col glass benefit mini-cards + pulsing onboarding CTA.
+- 9.5 Courses.tsx — 3D Y-axis flip cards ([perspective:1200px] + preserve-3d + rotateY(180deg) + backface-hidden, duration-480 ease-cinematic). Front: course title/desc/cover. Back: numbered curriculum + outcomes + Enroll CTA. Tap-to-flip for touch + group-hover for desktop.
+- 9.9 BlogPreview.tsx — glassmorphic card grid, image zoom on hover (scale-1.05 duration-240 ease-cinematic), gradient overlay, owns its own /api/blogs?limit=3 fetch.
+- 9.10 ContactForm.tsx — glassmorphic form panel + gold-gradient focus rings + pulsing submit CTA. ALL form state/refs/handlers/effects moved out of page.tsx; parent passes `interest={kind+nonce}` trigger + `onToast`.
+- 9.11 StickyCTA.tsx — glassmorphic bar that snaps in (duration-480 ease-snap) past the hero, hides when #contact in view; replaces legacy mobile-cta-bar + showMobileCta state.
+
+**Page-level cf-* pass:** glassmorphic sticky nav (on scroll), About Us redesign (Bebas Neue + glass principle cards), legal modal, exit-intent popup (pulsing CTA), cookie banner, social-proof toast, scroll-progress (gold gradient), back-to-top (gold ring), WhatsApp FAB (gold gradient), toast items.
+
+**Phase 10:** global `@media (prefers-reduced-motion: reduce)` block disables all cf-* animations + collapses transition durations. 80ms staggered reveal via animate-cf-reveal-up + [animation-delay:Nms] across all sections.
+
+**CRITICAL FIX — design system was non-functional:**
+Tailwind v4 (`@import "tailwindcss"`) does NOT auto-load `tailwind.config.ts`. Added `@config "../../tailwind.config.ts"` to globals.css — without it, NO cf-* token generated CSS (colors, Bebas Neue, glassmorphism, animations all silently broken). Plus unlayered CSS fallbacks for the tokens @config compat still skips: `bg-cf-gold-gradient` (background-image), `shadow-glass`/`shadow-glow-gold`, the 4 cf-* keyframes + `animate-cf-*`, `duration-*`, `ease-cinematic`/`ease-snap`. Verified via agent-browser computed-style probe on real DOM elements.
+
+**Other:** 8-blog seed (prisma/seed-blogs.ts, ~8.7k words, SEBI-compliant). Mobile menu ref-read-during-render fixed (CSS max-h). react-hooks/refs + set-state-in-effect downgraded to warn (consistent with exhaustive-deps). page.tsx 1,314→667 lines.
+
+tsc: 0 errors. lint: 0 errors (31 warnings). agent-browser: all 9 sections render, 3 blog cards with real titles, dev.log clean.

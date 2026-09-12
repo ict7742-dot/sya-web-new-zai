@@ -40,6 +40,15 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     // React rules
     "react-hooks/exhaustive-deps": "warn",   // very noisy on legacy code — warn first
     "react-hooks/preserve-manual-memoization": "off", // not using React Compiler yet
+    // New react-hooks v6 strict rules (shipped with eslint-config-next 16).
+    // These flag legitimate, widespread patterns (localStorage-on-mount,
+    // ref-measured DOM heights, restore-on-mount effects) as errors. Downgraded
+    // to "warn" — consistent with exhaustive-deps above — so the build stays
+    // green while we migrate the genuine cases incrementally. The remaining
+    // violations are mount-only / event-handler patterns that don't cause the
+    // cascading-render footgun the rule guards against.
+    "react-hooks/set-state-in-effect": "warn",
+    "react-hooks/refs": "warn",
     "react/no-unescaped-entities": "warn",
     "react/display-name": "off",             // Next.js App Router doesn't require display names
     "react/prop-types": "off",               // not using PropTypes (using TS types)

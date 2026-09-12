@@ -1,7 +1,70 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Load the v3-style JS config (tailwind.config.ts) which defines the entire
+   Cinematic Finance token system: cf-* colors, font-display (Bebas Neue),
+   font-data (JetBrains Mono), ease-cinematic/ease-snap, duration-70..800,
+   shadow-glass/glow-gold/glow-emerald, backdrop-blur-glass/saturate-glass,
+   and the cf-* keyframe animations. Without this directive, Tailwind v4
+   (CSS-first) ignores the JS config and generates NONE of these utilities —
+   the whole design system was silently broken. */
+@config "../../tailwind.config.ts";
+
 @custom-variant dark (&:is(.dark *));
+
+/* ══════════ Phase 9 fix: bg-cf-gold-gradient → background-image ══════════
+   The tailwind.config.ts defines `cf-gold.gradient` as a color token whose
+   value is a linear-gradient() string. Tailwind v4 generates `.bg-cf-gold-gradient
+   { background-color: <gradient> }` from that — which is INVALID CSS
+   (background-color cannot be a gradient), so the browser ignores it and the
+   element renders with NO background. That made the hero's "Markets" gradient
+   text invisible (bg-clip-text + transparent text + no gradient to clip) and
+   left every gold CTA button without a background.
+
+   This UNLAYERED rule sets background-image explicitly. Unlayered CSS beats
+   Tailwind's utilities-layer rule, so the gradient renders correctly. Applies
+   to every `bg-cf-gold-gradient` usage across all section components + page.tsx. */
+.bg-cf-gold-gradient {
+  background-image: linear-gradient(135deg, #F0CD8F 0%, #E2B15C 50%, #B98A3B 100%);
+}
+
+/* ══════════ Phase 9 fix: shadow-glass / shadow-glow-gold — CSS fallback ══════════
+   Tailwind v4's @config compat layer generates color + font utilities from
+   the JS config, but does NOT generate boxShadow utilities (the `boxShadow`
+   theme key is ignored). So shadow-glass / shadow-glow-gold / hover variants
+   produce no CSS. These unlayered rules supply them directly. Used 30× across
+   the section components + page.tsx for glassmorphic depth + gold hover glow. */
+.shadow-glass { box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37), inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+.shadow-glow-gold { box-shadow: 0 0 24px rgba(226, 177, 92, 0.32); }
+.hover\:shadow-glow-gold:hover { box-shadow: 0 0 24px rgba(226, 177, 92, 0.32); }
+
+/* ══════════ Phase 9 fix: keyframe animations + durations + easings ══════════
+   Tailwind v4's @config compat also skips the `animation`, `keyframes`,
+   `transitionDuration`, and `transitionTimingFunction` theme keys. These
+   unlayered rules supply the full Cinematic Finance motion system. Keyframes
+   are defined here so the animations resolve. The global prefers-reduced-motion
+   block below still disables these for users who opt out. */
+@keyframes cf-reveal-up { 0% { opacity: 0; transform: translateY(16px); } 100% { opacity: 1; transform: translateY(0); } }
+@keyframes cf-glow-drift { 0%, 100% { transform: translate(0, 0); opacity: 0.6; } 50% { transform: translate(30px, -20px); opacity: 0.9; } }
+@keyframes cf-ken-burns { 0% { transform: scale(1) translate(0, 0); } 100% { transform: scale(1.08) translate(-2%, -1%); } }
+@keyframes cf-pulse-cta { 0%, 100% { box-shadow: 0 0 0 0 rgba(226, 177, 92, 0.45); } 50% { box-shadow: 0 0 0 14px rgba(226, 177, 92, 0); } }
+
+.animate-cf-reveal-up { animation: cf-reveal-up 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-cf-glow-drift { animation: cf-glow-drift 18s ease-in-out infinite; }
+.animate-cf-ken-burns { animation: cf-ken-burns 12s ease-out forwards; }
+.animate-cf-pulse-cta { animation: cf-pulse-cta 2.4s ease-in-out infinite; }
+
+/* Transition durations (Cinematic Finance scale) */
+.duration-70 { transition-duration: 70ms; }
+.duration-90 { transition-duration: 90ms; }
+.duration-160 { transition-duration: 160ms; }
+.duration-240 { transition-duration: 240ms; }
+.duration-480 { transition-duration: 480ms; }
+.duration-800 { transition-duration: 800ms; }
+
+/* Transition easings */
+.ease-cinematic { transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1); }
+.ease-snap { transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
 
 @theme inline {
   --color-background: var(--background);
@@ -194,6 +257,31 @@ h1 em, h2 em, h3 em { font-style:italic; color:#E2B15C; font-weight:500; }
 .reveal.in { opacity:1; transform:none; }
 .d1 { transition-delay:.08s; } .d2 { transition-delay:.16s; } .d3 { transition-delay:.24s; }
 
+/* ══════════ Phase 10: prefers-reduced-motion — respect user setting globally ══════════
+   Disables all Cinematic Finance keyframe animations + the signature
+   staggered reveal + Ken Burns zoom + CTA pulse + glow drift, AND shortens
+   transitions to near-instant. Users who prefer reduced motion still get
+   full functionality — just without motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-cf-reveal-up,
+  .animate-cf-glow-drift,
+  .animate-cf-ken-burns,
+  .animate-cf-pulse-cta {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Form */
 .f-label { display:block; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:#98A2B8; font-weight:600; margin-bottom:8px; }
 .f-input { width:100%; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:6px;
@@ -207,9 +295,9 @@ option { background:#0C1322; color:#E8EBF2; }
 .sel-flash { border-color:rgba(226,177,92,.85) !important; box-shadow:0 0 0 3px rgba(226,177,92,.12); }
 
 /* Toasts */
-.toast-item { display:flex; gap:12px; align-items:flex-start; background:#0C1322; border:1px solid rgba(255,255,255,.12);
-               border-radius:10px; padding:13px 16px; max-width:360px; box-shadow:0 20px 50px -20px rgba(0,0,0,.8);
-               opacity:0; transform:translateY(12px); transition:all .35s cubic-bezier(.22,1,.36,1); }
+.toast-item { display:flex; gap:12px; align-items:flex-start; background:rgba(12,19,34,0.55); border:1px solid rgba(226,177,92,0.18);
+               border-radius:10px; padding:13px 16px; max-width:360px; box-shadow:0 8px 32px rgba(0,0,0,0.37), inset 0 1px 0 rgba(255,255,255,0.04);
+               opacity:0; transform:translateY(12px); transition:all .35s cubic-bezier(.22,1,.36,1); backdrop-filter:blur(12px) saturate(1.4); }
 .toast-item.show { opacity:1; transform:none; }
 
 #mobileMenu { transition:max-height .35s cubic-bezier(.22,1,.36,1); overflow:hidden; }
@@ -247,15 +335,15 @@ option { background:#0C1322; color:#E8EBF2; }
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(12, 19, 34, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(12, 19, 34, 0.55);
+  border: 1px solid rgba(226, 177, 92, 0.18);
   border-radius: 10px;
   padding: 12px 16px;
   max-width: 320px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px) saturate(1.4);
   animation: spIn .4s cubic-bezier(.22,1,.36,1), spOut .4s cubic-bezier(.22,1,.36,1) 4.6s;
   pointer-events: none;
-  box-shadow: 0 12px 32px rgba(0,0,0,.5);
+  box-shadow: 0 8px 32px rgba(0,0,0,.37), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 @keyframes spIn {
   from { opacity: 0; transform: translateY(16px); }
@@ -365,20 +453,20 @@ option { background:#0C1322; color:#E8EBF2; }
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #25D366;
+  background: linear-gradient(135deg, #F0CD8F, #E2B15C, #B98A3B);  /* cf-gold gradient */
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(37,211,102,0.35);
+  box-shadow: 0 0 24px rgba(226, 177, 92, 0.32);
   transition: transform .25s cubic-bezier(.22,1,.36,1), box-shadow .25s;
   cursor: pointer;
   border: none;
 }
 .whatsapp-fab:hover {
   transform: scale(1.08);
-  box-shadow: 0 6px 28px rgba(37,211,102,0.5);
+  box-shadow: 0 0 28px rgba(226, 177, 92, 0.45);
 }
-.whatsapp-fab svg { width: 28px; height: 28px; fill: #fff; }
+.whatsapp-fab svg { width: 28px; height: 28px; fill: #05070D; }
 .whatsapp-tooltip {
   position: absolute;
   left: 68px;
@@ -523,7 +611,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg, #E2B15C, #F0CD8F);
+  background: linear-gradient(90deg, #F0CD8F, #E2B15C, #B98A3B);  /* cf-gold gradient */
   z-index: 200;
   transform-origin: left;
   transform: scaleX(0);
@@ -540,8 +628,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: rgba(12, 19, 34, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(12, 19, 34, 0.55);
+  border: 1px solid rgba(226, 177, 92, 0.3);
   color: #E2B15C;
   display: flex;
   align-items: center;
@@ -549,9 +637,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   cursor: pointer;
   opacity: 0;
   transform: translateY(12px);
-  transition: opacity .3s, transform .3s cubic-bezier(.22,1,.36,1), background .2s, border-color .2s;
+  transition: opacity .3s, transform .3s cubic-bezier(.22,1,.36,1), background .2s, border-color .2s, box-shadow .2s;
   pointer-events: none;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px) saturate(1.4);
 }
 .btt-btn.visible {
   opacity: 1;
@@ -559,8 +647,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   pointer-events: auto;
 }
 .btt-btn:hover {
-  background: rgba(226, 177, 92, 0.15);
-  border-color: rgba(226, 177, 92, 0.4);
+  background: rgba(226, 177, 92, 0.18);
+  border-color: rgba(226, 177, 92, 0.6);
+  box-shadow: 0 0 18px rgba(226, 177, 92, 0.32);
 }
 
 /* ══════════ Phase 3: Mobile CTA Bar ══════════ */
@@ -641,9 +730,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   z-index: 100;
  padding: 16px;
   padding-bottom: max(16px, env(safe-area-inset-bottom));
-  background: rgba(7, 11, 20, 0.96);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(16px);
+  background: rgba(8, 11, 20, 0.85);
+  border-top: 1px solid rgba(226, 177, 92, 0.18);
+  backdrop-filter: blur(12px) saturate(1.4);
  animation: cookieIn .4s cubic-bezier(.22,1,.36,1);
 }
 @keyframes cookieIn {
@@ -668,6 +757,13 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     justify-content: center;
   }
 }
+
+/* ══════════ Phase 9.5: cf-scroll — slim gold scrollbar for flip-card curriculum lists ══════════ */
+.cf-scroll::-webkit-scrollbar { width: 4px; }
+.cf-scroll::-webkit-scrollbar-track { background: transparent; }
+.cf-scroll::-webkit-scrollbar-thumb { background: rgba(226, 177, 92, 0.25); border-radius: 4px; }
+.cf-scroll::-webkit-scrollbar-thumb:hover { background: rgba(226, 177, 92, 0.45); }
+.cf-scroll { scrollbar-width: thin; scrollbar-color: rgba(226, 177, 92, 0.25) transparent; }
 
 /* ══════════ Phase 0: Curriculum Panel ══════════ */
 .curriculum-panel {

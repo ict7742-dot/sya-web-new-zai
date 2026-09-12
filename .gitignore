@@ -96,3 +96,5 @@ review-*.png
 
 # Mini-services scaffold
 /mini-services/
+dev.db
+prisma/*.db
