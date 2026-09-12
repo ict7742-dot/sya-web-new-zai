@@ -166,9 +166,11 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
           <h1 className="mt-5 max-w-3xl font-display font-normal text-[40px] md:text-[64px] leading-[0.98] tracking-[-0.01em] text-cf-text-strong animate-cf-reveal-up [animation-delay:80ms]">
             {post.title}
           </h1>
+          {/* Gold-gradient hairline under the title — a Cinematic Finance detail */}
+          <div className="mt-5 h-px w-24 bg-cf-gold-gradient opacity-60 animate-cf-reveal-up [animation-delay:140ms]" aria-hidden />
 
           {post.excerpt && (
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-cf-mist animate-cf-reveal-up [animation-delay:160ms]">{post.excerpt}</p>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-cf-mist animate-cf-reveal-up [animation-delay:200ms]">{post.excerpt}</p>
           )}
 
           <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/[0.07] py-4 text-sm text-cf-mist animate-cf-reveal-up [animation-delay:240ms]">

@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 
-/** Fixed gold gradient progress bar at the top of the viewport that tracks scroll. */
+/** Fixed gold gradient progress bar at the top of the viewport that tracks
+ *  scroll. Also renders a small glassmorphic percentage badge in the top-right
+ *  corner — a Cinematic Finance detail that gives readers a sense of how far
+ *  through the article they are. Hidden until the reader scrolls past 2%, and
+ *  hidden under prefers-reduced-motion (the badge is fine, but the bar's
+ *  transition is already handled by the global guard). */
 export function ReadingProgress() {
   const [progress, setProgress] = useState(0);
 
@@ -19,12 +24,36 @@ export function ReadingProgress() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  const pct = Math.round(progress);
+
   return (
-    <div
-      className="bg-cf-gold-gradient fixed left-0 top-0 z-[60] h-[3px]"
-      style={{ width: `${progress}%`, transition: 'width 0.1s linear' }}
-      aria-hidden
-    />
+    <>
+      {/* The progress bar itself */}
+      <div
+        className="bg-cf-gold-gradient fixed left-0 top-0 z-[60] h-[3px]"
+        style={{ width: `${progress}%`, transition: 'width 0.1s linear' }}
+        aria-hidden
+      />
+      {/* Percentage badge — glassmorphic gold pill, top-right.
+          Appears once the reader scrolls past 2%; hides at the very top so it
+          doesn't clutter the hero. */}
+      {pct > 2 && (
+        <div
+          className="fixed top-3 right-3 z-[60] hidden sm:flex items-center gap-1.5 rounded-full bg-cf-glass backdrop-blur-glass border border-cf-glass-border shadow-glass px-2.5 py-1 transition-opacity duration-240 ease-cinematic"
+          aria-label={`${pct}% of article read`}
+        >
+          <span className="font-data text-[11px] font-semibold tabular-nums text-cf-gold">
+            {pct}%
+          </span>
+          <span className="block w-8 h-1 rounded-full bg-white/10 overflow-hidden">
+            <span
+              className="block h-full bg-cf-gold-gradient transition-[width] duration-100 linear"
+              style={{ width: `${pct}%` }}
+            />
+          </span>
+        </div>
+      )}
+    </>
   );
 }
 

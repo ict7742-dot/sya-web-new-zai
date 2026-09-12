@@ -193,8 +193,8 @@ export default function AdminPage() {
 
   /* ═══════════════ Render: Dashboard ═══════════════ */
 
-  const TABS: Array<{ id: Tab; label: string; icon: typeof Users }> = [
-    { id: 'leads', label: 'Leads', icon: Users },
+  const TABS: Array<{ id: Tab; label: string; icon: typeof Users; count?: number }> = [
+    { id: 'leads', label: 'Leads', icon: Users, count: initialTotalLeads },
     { id: 'blogs', label: 'Blog Posts', icon: FileText },
     { id: 'subscribers', label: 'Subscribers', icon: Mail },
   ];
@@ -239,6 +239,18 @@ export default function AdminPage() {
               >
                 <Icon size={16} />
                 {t.label}
+                {/* Live count badge — gold gradient pill for at-a-glance status */}
+                {typeof t.count === 'number' && (
+                  <span
+                    className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold tabular-nums font-data transition-colors duration-160 ${
+                      active
+                        ? 'bg-cf-gold-gradient text-cf-bg shadow-glow-gold'
+                        : 'bg-cf-glass text-cf-mist border border-cf-glass-border'
+                    }`}
+                  >
+                    {t.count}
+                  </span>
+                )}
               </button>
             );
           })}

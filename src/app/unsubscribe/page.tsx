@@ -31,33 +31,47 @@ export default async function UnsubscribePage({
   const valid = typeof token === 'string' && /^[a-f0-9]{48}$/.test(token);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#070B14] px-5 py-16 text-[#E8EBF2]">
-      <div className="w-full max-w-lg">
+    <main className="flex min-h-screen items-center justify-center bg-cf-bg px-5 py-16 text-cf-text relative overflow-hidden">
+      {/* Ambient gold glow drift — consistent with the rest of the site */}
+      <div
+        className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full blur-3xl opacity-25 animate-cf-glow-drift"
+        style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.16), transparent 70%)' }}
+        aria-hidden
+      />
+      <div className="w-full max-w-lg relative">
         {/* Brand header — reinforces this is the genuine SYA site, not phishing */}
         <Link href="/" className="mb-6 flex items-center justify-center gap-2.5">
           <SyaMark />
-          <span className="font-[family-name:var(--font-fraunces)] text-[15px] font-semibold tracking-tight text-[#E8EBF2]">
+          <span className="font-display font-normal text-[18px] leading-none tracking-[-0.01em] text-cf-text-strong">
             Systematic Yield Analysts
           </span>
         </Link>
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 shadow-2xl md:p-12">
+        {/* Glassmorphic card */}
+        <div className="relative rounded-2xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden p-8 md:p-12">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-60" />
+          <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
           {valid ? (
-            <UnsubscribedForm token={token as string} />
+            <div className="relative">
+              <UnsubscribedForm token={token as string} />
+            </div>
           ) : (
-            <div className="flex flex-col items-center gap-4 py-6 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#F0555F]/10 ring-1 ring-[#F0555F]/30">
-                <AlertCircle className="h-8 w-8 text-[#F0555F]" />
+            <div className="relative flex flex-col items-center gap-4 py-6 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-cf-crimson/10 border border-cf-crimson/30 shadow-[0_0_18px_rgba(240,85,95,0.18)]">
+                <AlertCircle className="h-8 w-8 text-cf-crimson" />
               </div>
-              <h1 className="font-[family-name:var(--font-fraunces)] text-3xl font-semibold text-[#E8EBF2]">
+              <h1 className="font-display font-normal text-[40px] leading-tight tracking-[-0.01em] text-cf-text-strong">
                 Invalid unsubscribe link
               </h1>
-              <p className="max-w-md text-[15px] leading-relaxed text-[#98A2B8]">
+              <p className="max-w-md text-[15px] leading-relaxed text-cf-mist">
                 The link you followed is missing or malformed. Unsubscribe links are sent at the
                 bottom of every newsletter email — please use the link from a recent email.
               </p>
-              <a href="/blog" className="btn btn-ghost mt-2">
+              <Link
+                href="/blog"
+                className="mt-2 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-md border border-cf-gold/30 text-cf-text font-semibold text-[14px] transition-all duration-240 ease-cinematic hover:border-cf-gold/60 hover:text-cf-gold"
+              >
                 Go to Insights
-              </a>
+              </Link>
             </div>
           )}
         </div>
