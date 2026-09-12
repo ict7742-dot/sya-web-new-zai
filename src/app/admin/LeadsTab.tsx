@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Download, Loader2, Filter, X } from 'lucide-react';
+import { Users, Download, Loader2, Filter, X, ChevronDown, Phone, Mail, MessageCircle } from 'lucide-react';
 import {
   formatDate,
   getWeekStart,
@@ -60,6 +60,8 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
   const [error, setError] = useState('');
   const [interestFilter, setInterestFilter] = useState<InterestFilter>('all');
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+  /** Index (into filteredLeads) of the expanded lead row, or null if none. */
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -104,7 +106,7 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
   }, [leads, interestFilter, dateCutoff]);
 
   const hasFilters = interestFilter !== 'all' || dateFilter !== 'all';
-  const clearFilters = () => { setInterestFilter('all'); setDateFilter('all'); };
+  const clearFilters = () => { setInterestFilter('all'); setDateFilter('all'); setExpandedIdx(null); };
 
   /** Export CSV — fetches the full CSV from the API, then filters client-side
    *  so the downloaded file respects the active interest + date filters. */
@@ -284,32 +286,109 @@ export function LeadsTab({ initialLeads, initialTotal, onUnauthorized, onToast }
                 </tr>
               </thead>
               <tbody>
-                {filteredLeads.map((lead, i) => (
-                  <tr
-                    key={`${lead.phone}-${i}`}
-                    className="border-b border-white/[0.04] last:border-b-0 hover:bg-cf-gold/[0.04] transition-colors duration-160"
-                  >
-                    <td className="px-4 py-3 font-medium text-cf-text-strong whitespace-nowrap">{lead.name}</td>
-                    <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{lead.phone}</td>
-                    <td className="px-4 py-3 text-cf-mist whitespace-nowrap">{lead.email}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                          INTEREST_COLORS[lead.interest] || 'bg-white/[0.06] text-cf-mist border border-white/10'
-                        }`}
-                      >
-                        {INTEREST_LABELS[lead.interest] || lead.interest}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-cf-mist whitespace-nowrap">{lead.utmSource || 'website'}</td>
-                    <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                  </tr>
-                ))}
+                {filteredLeads.map((lead, i) => {
+                  const isExpanded = expandedIdx === i;
+                  return (
+                    <LeadRow
+                      key={`${lead.phone}-${i}`}
+                      lead={lead}
+                      isExpanded={isExpanded}
+                      onToggle={() => setExpandedIdx(isExpanded ? null : i)}
+                    />
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** A single lead row + its expandable detail drawer. Clicking the row toggles
+ *  the drawer, which shows the full UTM breakdown + quick-action links (call /
+ *  email / WhatsApp). The drawer uses a colspan row so it spans the full table
+ *  width — a glassmorphic panel with gold top-edge. */
+function LeadRow({ lead, isExpanded, onToggle }: { lead: Lead; isExpanded: boolean; onToggle: () => void }) {
+  const waUrl = `https://wa.me/91${lead.phone.replace(/\D/g, '').slice(-10)}?text=${encodeURIComponent(`Hi ${lead.name.split(' ')[0]}, this is SYA regarding your inquiry.`)}`;
+  return (
+    <>
+      <tr
+        onClick={onToggle}
+        className={`border-b border-white/[0.04] last:border-b-0 transition-colors duration-160 cursor-pointer ${isExpanded ? 'bg-cf-gold/[0.06]' : 'hover:bg-cf-gold/[0.04]'}`}
+      >
+        <td className="px-4 py-3 font-medium text-cf-text-strong whitespace-nowrap">
+          <span className="inline-flex items-center gap-2">
+            <ChevronDown size={14} className={`text-cf-gold transition-transform duration-240 ease-cinematic ${isExpanded ? 'rotate-180' : ''}`} />
+            {lead.name}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{lead.phone}</td>
+        <td className="px-4 py-3 text-cf-mist whitespace-nowrap">{lead.email}</td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          <span
+            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              INTEREST_COLORS[lead.interest] || 'bg-white/[0.06] text-cf-mist border border-white/10'
+            }`}
+          >
+            {INTEREST_LABELS[lead.interest] || lead.interest}
+          </span>
+        </td>
+        <td className="px-4 py-3 text-cf-mist whitespace-nowrap">{lead.utmSource || 'website'}</td>
+        <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+      </tr>
+      {isExpanded && (
+        <tr className="border-b border-white/[0.04] last:border-b-0">
+          <td colSpan={6} className="p-0">
+            {/* Glassmorphic detail panel */}
+            <div className="relative bg-cf-bg-elevated/60 border-t border-cf-gold/20 px-4 py-4 overflow-hidden">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-40" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* UTM breakdown */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cf-gold">UTM Tracking</p>
+                  <DetailRow label="Source" value={lead.utmSource} />
+                  <DetailRow label="Medium" value={lead.utmMedium} />
+                  <DetailRow label="Campaign" value={lead.utmCampaign} />
+                </div>
+                {/* Timestamp */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cf-gold">Timestamp</p>
+                  <DetailRow label="Submitted" value={new Date(lead.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })} mono />
+                </div>
+                {/* Quick actions */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cf-gold">Quick Actions</p>
+                  <div className="flex flex-wrap gap-2">
+                    <a href={`tel:+91${lead.phone.replace(/\D/g, '').slice(-10)}`} className="inline-flex items-center gap-1.5 rounded-md border border-cf-gold/30 bg-cf-glass px-3 py-1.5 text-xs text-cf-text hover:border-cf-gold/60 hover:text-cf-gold transition-colors duration-160">
+                      <Phone size={12} /> Call
+                    </a>
+                    <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1.5 rounded-md border border-cf-gold/30 bg-cf-glass px-3 py-1.5 text-xs text-cf-text hover:border-cf-gold/60 hover:text-cf-gold transition-colors duration-160">
+                      <Mail size={12} /> Email
+                    </a>
+                    <a href={waUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md border border-[#25D366]/30 bg-[#25D366]/10 px-3 py-1.5 text-xs text-[#25D366] hover:border-[#25D366]/60 transition-colors duration-160">
+                      <MessageCircle size={12} /> WhatsApp
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
+/** A label + value row for the detail drawer. */
+function DetailRow({ label, value, mono }: { label: string; value?: string | null; mono?: boolean }) {
+  return (
+    <div className="flex items-baseline gap-2 text-xs">
+      <span className="text-cf-text-muted w-20 shrink-0">{label}</span>
+      <span className={`text-cf-text ${mono ? 'font-data tabular-nums' : ''}`}>
+        {value || <span className="text-cf-text-muted/60">—</span>}
+      </span>
     </div>
   );
 }

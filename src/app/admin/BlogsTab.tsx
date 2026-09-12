@@ -31,6 +31,9 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  /** { [slug]: { words, readingMins } } — fetched in parallel with the blog list
+   *  so the Words column can render without an N+1 per-post content fetch. */
+  const [wordCounts, setWordCounts] = useState<Record<string, { words: number; readingMins: number }>>({});
 
   // Blog form modal state
   const [showBlogForm, setShowBlogForm] = useState(false);
@@ -46,11 +49,20 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/blogs');
-      if (res.status === 401) { onUnauthorized(); return; }
-      if (!res.ok) throw new Error('Failed to fetch blogs');
-      const data = await res.json();
+      // Fetch the blog list + word counts in parallel — single round-trip for
+      // both, no N+1 on the per-post content.
+      const [listRes, wcRes] = await Promise.all([
+        fetch('/api/admin/blogs'),
+        fetch('/api/admin/blogs/word-counts'),
+      ]);
+      if (listRes.status === 401 || wcRes.status === 401) { onUnauthorized(); return; }
+      if (!listRes.ok) throw new Error('Failed to fetch blogs');
+      const data = await listRes.json();
       setBlogs(data);
+      if (wcRes.ok) {
+        const wc = await wcRes.json();
+        setWordCounts(wc);
+      }
     } catch {
       setError('Failed to load blog posts.');
     } finally {
@@ -153,7 +165,7 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.07]">
-                  {['Title', 'Slug', 'Category', 'Status', 'Views', 'Date', 'Actions'].map((h) => (
+                  {['Title', 'Slug', 'Category', 'Status', 'Views', 'Words', 'Date', 'Actions'].map((h) => (
                     <th
                       key={h}
                       className="text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-cf-mist whitespace-nowrap"
@@ -191,6 +203,12 @@ export function BlogsTab({ onUnauthorized, onToast }: BlogsTabProps) {
                       <span className="inline-flex items-center gap-1 text-cf-mist font-data tabular-nums text-xs">
                         <Eye size={12} className="text-cf-gold/60" />
                         {post.views.toLocaleString('en-IN')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex flex-col leading-tight">
+                        <span className="text-cf-text font-data tabular-nums text-xs">{(wordCounts[post.slug]?.words ?? 0).toLocaleString('en-IN')} w</span>
+                        <span className="text-cf-text-muted font-data tabular-nums text-[10px]">{wordCounts[post.slug]?.readingMins ?? 0} min</span>
                       </span>
                     </td>
                     <td className="px-4 py-3 text-cf-mist font-data tabular-nums whitespace-nowrap">{formatDate(post.createdAt)}</td>
