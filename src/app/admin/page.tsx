@@ -222,8 +222,10 @@ export default function AdminPage() {
 
       {/* ─── Content ─── */}
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6">
-        {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-cf-glass-border">
+        {/* Tabs — horizontally scrollable on narrow mobile so all 3 tabs stay
+            accessible without wrapping. The -mb-px keeps the active underline
+            flush with the container border. */}
+        <div className="flex gap-1 mb-6 border-b border-cf-glass-border overflow-x-auto cf-scroll -mx-1 px-1 pb-px">
           {TABS.map((t) => {
             const Icon = t.icon;
             const active = tab === t.id;
@@ -231,7 +233,7 @@ export default function AdminPage() {
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-160 -mb-px ${
+                className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-160 -mb-px shrink-0 whitespace-nowrap ${
                   active
                     ? 'border-cf-gold text-cf-gold'
                     : 'border-transparent text-cf-mist hover:text-cf-text'

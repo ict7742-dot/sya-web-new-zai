@@ -57,15 +57,20 @@ export function ReadingProgress() {
   );
 }
 
-/** Copy-link + native share buttons. Stays client-only (uses clipboard/Web API). */
+/** Copy-link + native share buttons. Stays client-only (uses clipboard/Web API).
+ *  Shows a glassmorphic "Link copied!" toast on successful copy — more
+ *  discoverable than the silent icon-swap. */
 export function ShareButtons({ url, title }: { url: string; title: string }) {
   const [copied, setCopied] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
 
   const copyLink = async () => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
+      setToastVisible(true);
       setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setToastVisible(false), 2400);
     } catch {
       /* clipboard blocked — ignore */
     }
@@ -75,7 +80,7 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
   const xUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(url)}`;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="relative flex items-center gap-2">
       <span className="mr-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cf-text-muted">Share</span>
       <a
         href={waUrl}
@@ -116,6 +121,17 @@ export function ShareButtons({ url, title }: { url: string; title: string }) {
           </svg>
         )}
       </button>
+      {/* Glassmorphic "Link copied!" toast — slides in below the buttons */}
+      <span
+        className={`pointer-events-none absolute -bottom-9 right-0 inline-flex items-center gap-1.5 rounded-md bg-cf-glass backdrop-blur-glass border border-cf-emerald/30 shadow-glass px-2.5 py-1 text-[11px] font-medium text-cf-emerald transition-all duration-240 ease-cinematic ${toastVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
+        role="status"
+        aria-live="polite"
+      >
+        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+          <path d="M20 6 9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        Link copied!
+      </span>
     </div>
   );
 }

@@ -152,9 +152,13 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
           </Link>
 
           <div className="flex flex-wrap items-center gap-3 text-xs animate-cf-reveal-up">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-cf-gold/10 border border-cf-gold/30 px-3 py-1 text-cf-gold backdrop-blur-glass">
+            <Link
+              href={`/blog/category/${post.category.toLowerCase().replace(/\s+/g, '-')}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-cf-gold/10 border border-cf-gold/30 px-3 py-1 text-cf-gold backdrop-blur-glass transition-all duration-240 ease-cinematic hover:bg-cf-gold/20 hover:border-cf-gold/50 hover:shadow-glow-gold"
+              aria-label={`View all posts in ${post.category}`}
+            >
               <Tag className="h-3.5 w-3.5" /> {post.category}
-            </span>
+            </Link>
             <span className="inline-flex items-center gap-1.5 text-cf-mist font-data tabular-nums">
               <Clock className="h-3.5 w-3.5 text-cf-gold" /> {mins} min read
             </span>
