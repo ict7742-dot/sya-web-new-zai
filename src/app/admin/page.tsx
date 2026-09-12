@@ -575,14 +575,19 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 bg-[#070B14]">
-        <div className="w-full max-w-sm">
-          <div className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-6">
-            <div className="flex flex-col items-center gap-4 mb-6">
+      <div className="min-h-screen flex items-center justify-center px-4 bg-cf-bg relative overflow-hidden">
+        {/* Ambient gold glow drift */}
+        <div className="pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 w-[520px] h-[520px] rounded-full blur-3xl opacity-30 animate-cf-glow-drift" style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.18), transparent 70%)' }} aria-hidden />
+        <div className="w-full max-w-sm relative">
+          {/* Glassmorphic login card */}
+          <div className="relative rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden p-7">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-60" />
+            <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
+            <div className="relative flex flex-col items-center gap-4 mb-6">
               <SyaLogo size={48} />
               <div className="text-center">
-                <h1 className="text-xl font-semibold text-[#E8EBF2]">SYA Admin</h1>
-                <p className="text-sm text-[#98A2B8] mt-1">Dashboard Access</p>
+                <h1 className="font-display font-normal text-[40px] leading-none tracking-[-0.01em] text-cf-text-strong">SYA Admin</h1>
+                <p className="text-sm text-cf-mist mt-1.5">Dashboard Access</p>
               </div>
             </div>
 
@@ -592,7 +597,7 @@ export default function AdminPage() {
                 if (password.trim()) doLogin(password);
               }}
             >
-              <label className="block text-sm text-[#98A2B8] mb-1.5">
+              <label className="block text-sm text-cf-mist mb-1.5">
                 Password
               </label>
               <div className="relative">
@@ -604,13 +609,13 @@ export default function AdminPage() {
                     setLoginError('');
                   }}
                   placeholder="Enter admin password"
-                  className="w-full bg-white/[0.04] border border-white/[0.1] rounded-md px-3 py-2.5 text-sm text-[#E8EBF2] placeholder:text-[#98A2B8]/50 focus:outline-none focus:border-[#E2B15C]/50 pr-10"
+                  className="w-full bg-cf-glass border border-cf-glass-border rounded-md px-3 py-2.5 text-sm text-cf-text placeholder:text-cf-text-muted focus:outline-none focus:border-cf-gold focus:ring-2 focus:ring-cf-gold/20 transition-all duration-240 ease-cinematic pr-10"
                   autoFocus
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#98A2B8] hover:text-[#E8EBF2] transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-cf-mist hover:text-cf-gold transition-colors duration-160"
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -618,13 +623,13 @@ export default function AdminPage() {
               </div>
 
               {loginError && (
-                <p className="text-[#F0555F] text-xs mt-2">{loginError}</p>
+                <p className="text-cf-crimson text-xs mt-2">{loginError}</p>
               )}
 
               <button
                 type="submit"
                 disabled={loginLoading || !password.trim()}
-                className="w-full mt-4 bg-[#E2B15C] text-[#0A0F1C] font-semibold rounded-md px-4 py-2.5 hover:bg-[#F0CD8F] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-5 bg-cf-gold-gradient text-cf-bg font-semibold rounded-md px-4 py-2.5 hover:-translate-y-0.5 hover:shadow-glow-gold transition-all duration-240 ease-cinematic disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 flex items-center justify-center gap-2"
               >
                 {loginLoading && <Loader2 size={16} className="animate-spin" />}
                 {loginLoading ? 'Verifying...' : 'Sign In'}
@@ -632,8 +637,8 @@ export default function AdminPage() {
             </form>
           </div>
 
-          <p className="text-center text-xs text-[#98A2B8]/50 mt-4">
-            <Shield size={12} className="inline mr-1" />
+          <p className="text-center text-xs text-cf-text-muted mt-4">
+            <Shield size={12} className="inline mr-1 text-cf-gold" />
             Authorized access only
           </p>
         </div>
@@ -644,19 +649,19 @@ export default function AdminPage() {
   /* ═══════════════ Render: Dashboard ═══════════════ */
 
   return (
-    <div className="min-h-screen bg-[#070B14]">
-      {/* ─── Top Bar ─── */}
-      <header className="sticky top-0 z-30 bg-[#070B14]/90 backdrop-blur-sm border-b border-white/[0.08]">
+    <div className="min-h-screen bg-cf-bg">
+      {/* ─── Top Bar ─── glassmorphic sticky */}
+      <header className="sticky top-0 z-30 bg-cf-bg-elevated/85 backdrop-blur-glass backdrop-saturate-glass border-b border-cf-glass-border shadow-glass">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <SyaLogo size={30} />
-            <h1 className="text-base sm:text-lg font-semibold text-[#E8EBF2]">
+            <h1 className="font-display font-normal text-[22px] leading-none tracking-[-0.01em] text-cf-text-strong">
               SYA Admin Dashboard
             </h1>
           </div>
           <button
             onClick={doLogout}
-            className="flex items-center gap-2 border border-white/15 text-white rounded-md px-3 py-1.5 text-sm hover:border-[#E2B15C]/50 transition-colors"
+            className="flex items-center gap-2 border border-cf-gold/30 text-cf-text rounded-md px-3 py-1.5 text-sm hover:border-cf-gold/60 hover:text-cf-gold transition-colors duration-160"
           >
             <LogOut size={15} />
             <span className="hidden sm:inline">Logout</span>
@@ -667,13 +672,13 @@ export default function AdminPage() {
       {/* ─── Content ─── */}
       <main className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6">
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 border-b border-white/[0.08]">
+        <div className="flex gap-1 mb-6 border-b border-cf-glass-border">
           <button
             onClick={() => setTab('leads')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-160 -mb-px ${
               tab === 'leads'
-                ? 'border-[#E2B15C] text-[#E2B15C]'
-                : 'border-transparent text-[#98A2B8] hover:text-[#E8EBF2]'
+                ? 'border-cf-gold text-cf-gold'
+                : 'border-transparent text-cf-mist hover:text-cf-text'
             }`}
           >
             <Users size={16} />
@@ -681,10 +686,10 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => setTab('blogs')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-160 -mb-px ${
               tab === 'blogs'
-                ? 'border-[#E2B15C] text-[#E2B15C]'
-                : 'border-transparent text-[#98A2B8] hover:text-[#E8EBF2]'
+                ? 'border-cf-gold text-cf-gold'
+                : 'border-transparent text-cf-mist hover:text-cf-text'
             }`}
           >
             <FileText size={16} />
@@ -692,10 +697,10 @@ export default function AdminPage() {
           </button>
           <button
             onClick={() => setTab('subscribers')}
-            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors duration-160 -mb-px ${
               tab === 'subscribers'
-                ? 'border-[#E2B15C] text-[#E2B15C]'
-                : 'border-transparent text-[#98A2B8] hover:text-[#E8EBF2]'
+                ? 'border-cf-gold text-cf-gold'
+                : 'border-transparent text-cf-mist hover:text-cf-text'
             }`}
           >
             <Mail size={16} />
@@ -715,13 +720,15 @@ export default function AdminPage() {
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="bg-white/[0.02] border border-white/[0.08] rounded-xl p-5"
+                  className="relative rounded-xl bg-cf-glass backdrop-blur-glass backdrop-saturate-glass border border-cf-glass-border shadow-glass overflow-hidden p-5 transition-all duration-240 ease-cinematic hover:-translate-y-1 hover:border-cf-gold/40"
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-[#98A2B8]">{stat.label}</span>
-                    <stat.icon size={16} className="text-[#E2B15C]/60" />
+                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-50" />
+                  <div className="relative flex items-center justify-between mb-2">
+                    <span className="text-sm text-cf-mist">{stat.label}</span>
+                    <stat.icon size={16} className="text-cf-gold/60" />
                   </div>
-                  <p className="text-2xl font-bold text-[#E8EBF2]">
+                  <p className="font-data text-3xl font-bold tabular-nums text-cf-text-strong">
                     {stat.value.toLocaleString('en-IN')}
                   </p>
                 </div>
