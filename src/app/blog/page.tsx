@@ -19,7 +19,14 @@ export const metadata: Metadata = {
   },
 };
 
-export const dynamic = 'force-dynamic';
+/**
+ * ISR: revalidate the cached listing every 60 seconds. The blog index is a
+ * pure read (no DB mutations) so it's fully cacheable. New posts appear within
+ * 60s of publishing — imperceptible for a blog that updates weekly. Cuts TTFB
+ * dramatically under load vs the previous `force-dynamic` (which re-rendered
+ * on every request). Matches the blog detail page's revalidate: 60.
+ */
+export const revalidate = 60;
 
 export default async function BlogIndexPage() {
   const posts = await db.blogPost.findMany({
