@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { safeJsonStringify } from '@/lib/utils';
 import { ArrowLeft, ArrowRight, Calendar, User, Tag, Clock, ChevronRight, FileText, Sparkles, Eye } from 'lucide-react';
 import ReactMarkdown, { type Components } from 'react-markdown';
-import { ReadingProgress, ShareButtons, ActiveTocHighlighter } from '@/components/blog-interactions';
+import { ReadingProgress, ShareButtons, ActiveTocHighlighter, BackToTop } from '@/components/blog-interactions';
 import { Newsletter } from '@/components/newsletter';
 import { PopularPosts } from '@/components/popular-posts';
 
@@ -130,53 +130,59 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
   };
 
   return (
-    <article className="min-h-screen bg-[#070B14] text-[#E8EBF2]">
+    <article className="min-h-screen bg-cf-bg text-cf-text relative overflow-hidden">
+      {/* Ambient gold glow drift */}
+      <div
+        className="pointer-events-none absolute -top-32 right-0 w-[520px] h-[520px] rounded-full blur-3xl opacity-20 animate-cf-glow-drift"
+        style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.14), transparent 70%)' }}
+        aria-hidden
+      />
       <ReadingProgress />
       <ActiveTocHighlighter />
+      <BackToTop />
 
       {/* Hero */}
       <header className="relative overflow-hidden border-b border-white/[0.06]">
-        <div className="blog-hero-glow" aria-hidden />
         <div className="wrap relative px-5 py-16 md:px-8 md:py-24">
           <Link
             href="/blog"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
+            className="mb-8 inline-flex items-center gap-2 text-sm text-cf-mist transition-colors duration-160 hover:text-cf-gold"
           >
             <ArrowLeft className="h-4 w-4" /> All Insights
           </Link>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E2B15C]/10 px-3 py-1 text-[#E2B15C] ring-1 ring-[#E2B15C]/25">
+          <div className="flex flex-wrap items-center gap-3 text-xs animate-cf-reveal-up">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-cf-gold/10 border border-cf-gold/30 px-3 py-1 text-cf-gold backdrop-blur-glass">
               <Tag className="h-3.5 w-3.5" /> {post.category}
             </span>
-            <span className="inline-flex items-center gap-1.5 text-[#98A2B8]">
-              <Clock className="h-3.5 w-3.5" /> {mins} min read
+            <span className="inline-flex items-center gap-1.5 text-cf-mist font-data tabular-nums">
+              <Clock className="h-3.5 w-3.5 text-cf-gold" /> {mins} min read
             </span>
-            <span className="inline-flex items-center gap-1.5 text-[#98A2B8]">
-              <Eye className="h-3.5 w-3.5 text-[#E2B15C]" /> {post.views} {post.views === 1 ? 'view' : 'views'}
+            <span className="inline-flex items-center gap-1.5 text-cf-mist font-data tabular-nums">
+              <Eye className="h-3.5 w-3.5 text-cf-gold" /> {post.views} {post.views === 1 ? 'view' : 'views'}
             </span>
           </div>
 
-          <h1 className="mt-5 max-w-3xl font-[family-name:var(--font-fraunces)] text-3xl font-semibold leading-[1.12] md:text-5xl">
+          <h1 className="mt-5 max-w-3xl font-display font-normal text-[40px] md:text-[64px] leading-[0.98] tracking-[-0.01em] text-cf-text-strong animate-cf-reveal-up [animation-delay:80ms]">
             {post.title}
           </h1>
 
           {post.excerpt && (
-            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[#98A2B8]">{post.excerpt}</p>
+            <p className="mt-5 max-w-2xl text-lg leading-relaxed text-cf-mist animate-cf-reveal-up [animation-delay:160ms]">{post.excerpt}</p>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/[0.08] py-4 text-sm text-[#98A2B8]">
+          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-white/[0.07] py-4 text-sm text-cf-mist animate-cf-reveal-up [animation-delay:240ms]">
             <span className="inline-flex items-center gap-2">
-              <User className="h-4 w-4 text-[#E2B15C]" />
+              <User className="h-4 w-4 text-cf-gold" />
               <Link
                 href={`/blog/author/${post.author.toLowerCase().replace(/\s+/g, '-')}`}
-                className="transition-colors hover:text-[#E2B15C] hover:underline underline-offset-2"
+                className="transition-colors duration-160 hover:text-cf-gold hover:underline underline-offset-2"
               >
                 {post.author}
               </Link>
             </span>
-            <span className="inline-flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-[#E2B15C]" /> {fmt(post.createdAt)}
+            <span className="inline-flex items-center gap-2 font-data tabular-nums">
+              <Calendar className="h-4 w-4 text-cf-gold" /> {fmt(post.createdAt)}
             </span>
             <div className="ml-auto">
               <ShareButtons url={canonical} title={post.title} />
@@ -186,39 +192,43 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       </header>
 
       {/* Body + sidebar */}
-      <div className="wrap px-5 py-14 md:px-8 md:py-20">
+      <div className="wrap relative px-5 py-14 md:px-8 md:py-20">
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-12">
           <div className="min-w-0 lg:col-start-1">
-            {post.coverImage && (
-              <img
-                src={post.coverImage}
-                alt={post.title}
-                className="mb-10 aspect-[16/9] w-full rounded-xl border border-white/10 object-cover"
-              />
-            )}
-
-            {/* react-markdown escapes HTML by default and only renders known nodes,
-                so untrusted Markdown content can't inject scripts. Custom h2
-                renderer injects id attributes so the ToC + active highlighter work. */}
-            <div className="markdown-body">
-              <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
+            {/* Glassmorphic article container */}
+            <div className="relative rounded-xl bg-cf-glass backdrop-blur-glass border border-cf-glass-border shadow-glass overflow-hidden">
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-50" />
+              <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow" />
+              <div className="relative p-6 md:p-10">
+                {post.coverImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.coverImage}
+                    alt={post.title}
+                    className="mb-10 aspect-[16/9] w-full rounded-lg border border-cf-glass-border object-cover"
+                  />
+                )}
+                <div className="markdown-body">
+                  <ReactMarkdown components={markdownComponents}>{post.content}</ReactMarkdown>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Sidebar: Table of contents + Popular posts (sticky on desktop) */}
+          {/* Sidebar: ToC + Popular posts */}
           <aside className="hidden lg:col-start-2 lg:block">
             <div className="sticky top-8 space-y-8">
               {toc.length > 0 && (
                 <div>
-                  <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-[#98A2B8]">
-                    On this page
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-cf-mist flex items-center gap-3">
+                    <span className="block w-6 h-px bg-cf-gold opacity-70" /> On this page
                   </p>
                   <nav className="space-y-2 border-l border-white/10">
                     {toc.map((item) => (
                       <a
                         key={item.id}
                         href={`#${item.id}`}
-                        className="-ml-px block border-l-2 border-transparent py-1 pl-4 text-[13px] leading-snug text-[#98A2B8] transition-colors hover:border-[#E2B15C] hover:text-[#E2B15C]"
+                        className="-ml-px block border-l-2 border-transparent py-1 pl-4 text-[13px] leading-snug text-cf-mist transition-colors duration-160 hover:border-cf-gold hover:text-cf-gold"
                       >
                         {item.text}
                       </a>
@@ -232,19 +242,20 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
         </div>
       </div>
 
-      {/* Prev / Next navigation */}
+      {/* Prev / Next navigation — glassmorphic */}
       {(older || newer) && (
-        <div className="border-t border-white/[0.06]">
+        <div className="relative border-t border-white/[0.06]">
           <div className="wrap grid gap-4 px-5 py-12 md:grid-cols-2 md:px-8">
             {older ? (
               <Link
                 href={`/blog/${older.slug}`}
-                className="post-nav post-nav-prev group"
+                className="group relative rounded-xl bg-cf-glass backdrop-blur-glass border border-cf-glass-border p-5 transition-all duration-240 ease-cinematic hover:-translate-y-1 hover:border-cf-gold/40 overflow-hidden"
               >
-                <span className="post-nav-label">
-                  <ArrowLeft className="h-3.5 w-3.5" /> Older
+                <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow opacity-0 group-hover:opacity-100 transition-opacity duration-240" />
+                <span className="relative inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cf-mist">
+                  <ArrowLeft className="h-3.5 w-3.5 text-cf-gold" /> Older
                 </span>
-                <span className="post-nav-title">{older.title}</span>
+                <span className="relative block mt-2 text-[15px] font-semibold leading-snug text-cf-text-strong group-hover:text-cf-gold transition-colors duration-160 line-clamp-2">{older.title}</span>
               </Link>
             ) : (
               <div className="hidden md:block" />
@@ -252,56 +263,50 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
             {newer && (
               <Link
                 href={`/blog/${newer.slug}`}
-                className="post-nav post-nav-next group md:text-right"
+                className="group relative rounded-xl bg-cf-glass backdrop-blur-glass border border-cf-glass-border p-5 transition-all duration-240 ease-cinematic hover:-translate-y-1 hover:border-cf-gold/40 overflow-hidden md:text-right"
               >
-                <span className="post-nav-label">
-                  Newer <ArrowRight className="h-3.5 w-3.5" />
+                <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow opacity-0 group-hover:opacity-100 transition-opacity duration-240" />
+                <span className="relative inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-cf-mist">
+                  Newer <ArrowRight className="h-3.5 w-3.5 text-cf-gold" />
                 </span>
-                <span className="post-nav-title">{newer.title}</span>
+                <span className="relative block mt-2 text-[15px] font-semibold leading-snug text-cf-text-strong group-hover:text-cf-gold transition-colors duration-160 line-clamp-2">{newer.title}</span>
               </Link>
             )}
           </div>
         </div>
       )}
 
-      {/* Related posts — same category, keeps readers in the funnel */}
+      {/* Related posts — same category */}
       {related.length > 0 && (
-        <div className="border-t border-white/[0.06]">
+        <div className="relative border-t border-white/[0.06]">
           <div className="wrap px-5 py-14 md:px-8 md:py-20">
-            <p className="eyebrow mb-3">
+            <p className="flex items-center gap-3 text-[11px] md:text-[12px] font-semibold uppercase tracking-[0.18em] text-cf-mist mb-3">
+              <span className="block w-6 h-px bg-cf-gold opacity-70" />
               <Sparkles className="h-3.5 w-3.5" /> Keep reading
             </p>
-            <h2 className="mb-8 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#E8EBF2] md:text-3xl">
-              More from <em>{post.category}</em>
+            <h2 className="mb-8 font-display font-normal text-[40px] md:text-[56px] leading-[0.95] tracking-[-0.01em] text-cf-text-strong">
+              More from <span className="bg-cf-gold-gradient bg-clip-text text-transparent">{post.category}</span>
             </h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {related.map((rp) => (
-                <Link key={rp.id} href={`/blog/${rp.slug}`} className="blog-card group flex flex-col">
-                  <div className="blog-card-cover">
+                <Link key={rp.id} href={`/blog/${rp.slug}`} className="group relative flex flex-col rounded-xl bg-cf-glass backdrop-blur-glass border border-cf-glass-border shadow-glass overflow-hidden transition-all duration-240 ease-cinematic hover:-translate-y-1 hover:border-cf-gold/40">
+                  <div className="pointer-events-none absolute inset-0 rounded-[inherit] bg-cf-glass-glow opacity-0 group-hover:opacity-100 transition-opacity duration-240" />
+                  <div className="relative h-36 overflow-hidden bg-cf-bg-panel">
                     {rp.coverImage ? (
-                      <img
-                        src={rp.coverImage}
-                        alt={rp.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={rp.coverImage} alt={rp.title} className="h-full w-full object-cover opacity-70 transition-all duration-240 ease-cinematic group-hover:opacity-95 group-hover:scale-[1.05]" />
                     ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#0C1322] to-[#0A0F1C]">
-                        <FileText className="h-9 w-9 text-[#E2B15C]/40" />
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-cf-bg-panel to-cf-bg-elevated">
+                        <FileText className="h-9 w-9 text-cf-gold/30" />
                       </div>
                     )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-cf-bg/70 to-transparent" />
                   </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="line-clamp-2 font-[family-name:var(--font-fraunces)] text-[16px] font-semibold leading-snug text-[#E8EBF2] transition-colors group-hover:text-[#E2B15C]">
-                      {rp.title}
-                    </h3>
-                    {rp.excerpt && (
-                      <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-[#98A2B8]">
-                        {rp.excerpt}
-                      </p>
-                    )}
-                    <div className="mt-auto flex items-center gap-2 pt-4 text-xs text-[#525C70]">
-                      <Calendar className="h-3.5 w-3.5" />
-                      {fmt(rp.createdAt)}
+                  <div className="relative flex flex-1 flex-col p-5">
+                    <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-cf-text-strong transition-colors duration-160 group-hover:text-cf-gold">{rp.title}</h3>
+                    {rp.excerpt && <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-cf-mist">{rp.excerpt}</p>}
+                    <div className="mt-auto flex items-center gap-2 pt-4 text-xs text-cf-text-muted font-data tabular-nums">
+                      <Calendar className="h-3.5 w-3.5 text-cf-gold" /> {fmt(rp.createdAt)}
                     </div>
                   </div>
                 </Link>
@@ -312,13 +317,13 @@ export default async function BlogPostPage({ params }: { params: Promise<Params>
       )}
 
       {/* Breadcrumb + Newsletter */}
-      <div className="wrap px-5 pb-24 md:px-8">
-        <nav className="mb-8 flex items-center gap-1.5 text-xs text-[#525C70]">
-          <Link href="/" className="hover:text-[#E2B15C]">Home</Link>
+      <div className="wrap relative px-5 pb-24 md:px-8">
+        <nav className="mb-8 flex items-center gap-1.5 text-xs text-cf-text-muted">
+          <Link href="/" className="hover:text-cf-gold transition-colors duration-160">Home</Link>
           <ChevronRight className="h-3 w-3" />
-          <Link href="/blog" className="hover:text-[#E2B15C]">Insights</Link>
+          <Link href="/blog" className="hover:text-cf-gold transition-colors duration-160">Insights</Link>
           <ChevronRight className="h-3 w-3" />
-          <span className="truncate text-[#98A2B8]">{post.title}</span>
+          <span className="truncate text-cf-mist">{post.title}</span>
         </nav>
 
         <Newsletter source="blog" variant="card" />

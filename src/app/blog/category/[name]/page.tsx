@@ -76,34 +76,40 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
   const meta = CATEGORY_META[name] ?? CATEGORY_META.General;
 
   return (
-    <main className="min-h-screen bg-[#070B14] text-[#E8EBF2]">
+    <main className="min-h-screen bg-cf-bg text-cf-text relative overflow-hidden">
+      {/* Ambient gold glow */}
+      <div
+        className="pointer-events-none absolute -top-24 left-10 w-[460px] h-[460px] rounded-full blur-3xl opacity-20 animate-cf-glow-drift"
+        style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.14), transparent 70%)' }}
+        aria-hidden
+      />
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-white/[0.06]">
-        <div className="blog-hero-glow" aria-hidden />
         <div className="wrap relative px-5 py-16 md:px-8 md:py-24">
           <Link
             href="/blog"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
+            className="mb-8 inline-flex items-center gap-2 text-sm text-cf-mist transition-colors duration-160 hover:text-cf-gold"
           >
             <ArrowLeft className="h-4 w-4" /> All Insights
           </Link>
 
           <div className="flex items-start gap-6">
-            <div className="category-icon-lg">
+            <div className="relative w-16 h-16 shrink-0 rounded-2xl border border-cf-gold/30 bg-cf-gold/[0.06] flex items-center justify-center text-cf-gold shadow-glow-gold">
               <Layers className="h-8 w-8" />
             </div>
             <div>
-              <div className="eyebrow reveal in">
+              <p className="flex items-center gap-3 text-[11px] md:text-[12px] font-semibold uppercase tracking-[0.18em] text-cf-mist animate-cf-reveal-up">
+                <span className="block w-6 h-px bg-cf-gold opacity-70" />
                 <FileText className="h-3.5 w-3.5" /> Category
-              </div>
-              <h1 className="reveal in mt-3 font-[family-name:var(--font-fraunces)] text-4xl font-semibold leading-tight md:text-5xl">
+              </p>
+              <h1 className="mt-3 font-display font-normal text-[48px] md:text-[80px] leading-[0.95] tracking-[-0.01em] text-cf-text-strong animate-cf-reveal-up [animation-delay:80ms]">
                 {name}
               </h1>
-              <p className="reveal in d1 mt-3 max-w-xl text-[15.5px] leading-relaxed text-[#98A2B8]">
+              <p className="mt-3 max-w-xl text-[15.5px] leading-relaxed text-cf-mist animate-cf-reveal-up [animation-delay:160ms]">
                 {meta.long}
               </p>
-              <div className="reveal in d2 mt-4 inline-flex items-center gap-1.5 text-sm text-[#525C70]">
-                <FileText className="h-4 w-4 text-[#E2B15C]" /> {posts.length} {posts.length === 1 ? 'article' : 'articles'}
+              <div className="mt-4 inline-flex items-center gap-1.5 text-sm text-cf-text-muted font-data tabular-nums animate-cf-reveal-up [animation-delay:240ms]">
+                <FileText className="h-4 w-4 text-cf-gold" /> {posts.length} {posts.length === 1 ? 'article' : 'articles'}
               </div>
             </div>
           </div>
@@ -111,9 +117,9 @@ export default async function CategoryPage({ params }: { params: Promise<Params>
       </section>
 
       {/* Posts in this category */}
-      <section className="wrap px-5 py-14 md:px-8 md:py-20">
-        <h2 className="mb-8 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#E8EBF2]">
-          All articles in {name}
+      <section className="wrap relative px-5 py-14 md:px-8 md:py-20">
+        <h2 className="mb-8 font-display font-normal text-[32px] md:text-[44px] leading-tight tracking-[-0.01em] text-cf-text-strong">
+          All articles in <span className="bg-cf-gold-gradient bg-clip-text text-transparent">{name}</span>
         </h2>
         <BlogBrowser posts={mappedPosts} categories={categories} />
       </section>

@@ -69,39 +69,49 @@ export default async function AuthorPage({ params }: { params: Promise<Params> }
     .join('');
 
   return (
-    <main className="min-h-screen bg-[#070B14] text-[#E8EBF2]">
+    <main className="min-h-screen bg-cf-bg text-cf-text relative overflow-hidden">
+      {/* Ambient gold glow */}
+      <div
+        className="pointer-events-none absolute -top-24 right-0 w-[460px] h-[460px] rounded-full blur-3xl opacity-20 animate-cf-glow-drift"
+        style={{ background: 'radial-gradient(circle, rgba(226,177,92,0.14), transparent 70%)' }}
+        aria-hidden
+      />
       {/* Hero */}
       <section className="relative overflow-hidden border-b border-white/[0.06]">
-        <div className="blog-hero-glow" aria-hidden />
         <div className="wrap relative px-5 py-16 md:px-8 md:py-24">
           <Link
             href="/blog"
-            className="mb-8 inline-flex items-center gap-2 text-sm text-[#98A2B8] transition-colors hover:text-[#E2B15C]"
+            className="mb-8 inline-flex items-center gap-2 text-sm text-cf-mist transition-colors duration-160 hover:text-cf-gold"
           >
             <ArrowLeft className="h-4 w-4" /> All Insights
           </Link>
 
           <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
             {/* Author avatar — gold gradient ring with initials */}
-            <div className="author-avatar-lg">{initials}</div>
-            <div>
-              <div className="eyebrow reveal in">
-                <PenLine className="h-3.5 w-3.5" /> Author
+            <div className="relative w-20 h-20 shrink-0 rounded-full p-[2px] bg-cf-gold-gradient shadow-glow-gold">
+              <div className="w-full h-full rounded-full bg-cf-bg-elevated flex items-center justify-center font-display text-[28px] tracking-[-0.01em] text-cf-gold">
+                {initials}
               </div>
-              <h1 className="reveal in mt-3 font-[family-name:var(--font-fraunces)] text-4xl font-semibold leading-tight md:text-5xl">
+            </div>
+            <div>
+              <p className="flex items-center gap-3 text-[11px] md:text-[12px] font-semibold uppercase tracking-[0.18em] text-cf-mist animate-cf-reveal-up">
+                <span className="block w-6 h-px bg-cf-gold opacity-70" />
+                <PenLine className="h-3.5 w-3.5" /> Author
+              </p>
+              <h1 className="mt-3 font-display font-normal text-[48px] md:text-[80px] leading-[0.95] tracking-[-0.01em] text-cf-text-strong animate-cf-reveal-up [animation-delay:80ms]">
                 {name}
               </h1>
-              <p className="reveal in d1 mt-3 max-w-xl text-[15.5px] leading-relaxed text-[#98A2B8]">
+              <p className="mt-3 max-w-xl text-[15.5px] leading-relaxed text-cf-mist animate-cf-reveal-up [animation-delay:160ms]">
                 {bio}
               </p>
-              <div className="reveal in d2 mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-[#525C70]">
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-cf-text-muted font-data tabular-nums animate-cf-reveal-up [animation-delay:240ms]">
                 <span className="inline-flex items-center gap-1.5">
-                  <FileText className="h-4 w-4 text-[#E2B15C]" /> {posts.length} {posts.length === 1 ? 'article' : 'articles'}
+                  <FileText className="h-4 w-4 text-cf-gold" /> {posts.length} {posts.length === 1 ? 'article' : 'articles'}
                 </span>
                 {categories.length > 1 && (
                   <span className="inline-flex items-center gap-2">
                     {categories.map((c) => (
-                      <span key={c} className="rounded-full bg-white/[0.04] px-2.5 py-0.5 text-xs text-[#C6CDDB] ring-1 ring-white/[0.08]">
+                      <span key={c} className="rounded-full border border-cf-glass-border bg-cf-glass-glow px-2.5 py-0.5 text-xs text-cf-text">
                         {c}
                       </span>
                     ))}
@@ -114,9 +124,9 @@ export default async function AuthorPage({ params }: { params: Promise<Params> }
       </section>
 
       {/* Posts by this author */}
-      <section className="wrap px-5 py-14 md:px-8 md:py-20">
-        <h2 className="mb-8 font-[family-name:var(--font-fraunces)] text-2xl font-semibold text-[#E8EBF2]">
-          Articles by {name}
+      <section className="wrap relative px-5 py-14 md:px-8 md:py-20">
+        <h2 className="mb-8 font-display font-normal text-[32px] md:text-[44px] leading-tight tracking-[-0.01em] text-cf-text-strong">
+          Articles by <span className="bg-cf-gold-gradient bg-clip-text text-transparent">{name}</span>
         </h2>
         <BlogBrowser posts={mappedPosts} categories={categories} />
       </section>
