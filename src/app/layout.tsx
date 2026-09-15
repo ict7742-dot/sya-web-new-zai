@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Inter, Fraunces, Bebas_Neue, JetBrains_Mono } from "next/font/google";
+import { Inter, Fraunces, Bebas_Neue, JetBrains_Mono, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { CommandPalette } from "@/components/command-palette";
 import { safeJsonStringify } from "@/lib/utils";
@@ -32,6 +32,18 @@ const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "600"],
+});
+
+// Phase 13: SY Lime design system — DM Sans replaces Bebas Neue as the
+// primary display font (the mockup's typography). Loaded via next/font/google
+// (self-hosted, no external request). Tailwind's fontFamily.display stack
+// is ['var(--font-dm-sans)', 'DM Sans', 'var(--font-bebas)', 'Bebas Neue', 'Impact', 'sans-serif']
+// so existing cf-* components that use font-display continue to work.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
 });
 
 export const metadata: Metadata = {
@@ -103,7 +115,7 @@ export default function RootLayout({
   return (
     <html lang="en-IN" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${fraunces.variable} ${bebas.variable} ${jetbrains.variable} font-sans antialiased`}
+        className={`${inter.variable} ${fraunces.variable} ${bebas.variable} ${jetbrains.variable} ${dmSans.variable} font-sans antialiased`}
       >
         {/* JSON-LD Structured Data */}
         <script

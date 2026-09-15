@@ -202,6 +202,7 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         select: {
           name: true, phone: true, email: true, interest: true,
+          message: true, // added back to JSON response so admin drawer shows it without a second fetch
           createdAt: true, utmSource: true, utmMedium: true, utmCampaign: true,
         },
       }),

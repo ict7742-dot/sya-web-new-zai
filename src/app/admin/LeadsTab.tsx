@@ -371,6 +371,15 @@ function LeadRow({ lead, isExpanded, onToggle }: { lead: Lead; isExpanded: boole
             {/* Glassmorphic detail panel */}
             <div className="relative bg-cf-bg-elevated/60 border-t border-cf-gold/20 px-4 py-4 overflow-hidden">
               <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-cf-gold-gradient opacity-40" />
+              {/* Message from the lead — shown prominently above the UTM grid
+                  so the admin sees WHY the lead reached out before they see
+                  WHERE they came from. Empty state stays silent (no junk row). */}
+              {lead.message?.trim() && (
+                <div className="mb-4 rounded-lg border border-cf-gold/20 bg-cf-glass/60 p-3">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cf-gold mb-1.5">Message</p>
+                  <p className="text-[13px] text-cf-text leading-relaxed whitespace-pre-wrap">{lead.message.trim()}</p>
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* UTM breakdown */}
                 <div className="space-y-2">

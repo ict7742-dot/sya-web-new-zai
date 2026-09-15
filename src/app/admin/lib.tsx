@@ -13,6 +13,7 @@ export interface Lead {
   phone: string;
   email: string;
   interest: string;
+  message?: string | null;
   createdAt: string;
   utmSource?: string | null;
   utmMedium?: string | null;
