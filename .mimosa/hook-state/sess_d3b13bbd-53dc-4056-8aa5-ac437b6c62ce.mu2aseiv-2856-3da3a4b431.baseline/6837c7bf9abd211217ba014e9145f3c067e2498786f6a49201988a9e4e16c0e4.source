@@ -10,14 +10,31 @@ import {
   validationErrorResponse,
   bodyTooLarge,
   bodyTooLargeResponse,
-  parseBoundedInt,
   type ValidationErrors,
 } from '@/lib/validation';
 import { safeCsvCell } from '@/lib/csv';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
+// Rate limit store (in-memory, per server instance)
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
 const RATE_LIMIT_MAX = 3; // max 3 submissions per minute per IP
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: NextRequest): string {
+  const raw = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  if (raw && /^[0-9a-fA-F.:]+$/.test(raw)) return raw;
+  return 'unknown';
+}
 
 const VALID_INTERESTS = new Set(['account', 'courses', 'both']);
 
@@ -25,12 +42,11 @@ export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
 
-    // Rate limiting (in-memory, per server instance)
-    const rl = rateLimit(`leads:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW);
-    if (!rl.ok) {
+    // Rate limiting
+    if (isRateLimited(ip)) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait a moment before trying again.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+        { status: 429 }
       );
     }
     // Body-size policy (1 MB default — generous for a lead form payload which
@@ -40,13 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, phone, email, interest, message, website, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, landingPage } = body;
-
-    // Honeypot: the form renders a visually-hidden "website" input that humans
-    // never fill. A filled value means a bot — pretend success, save nothing.
-    if (typeof website === 'string' && website.trim() !== '') {
-      return NextResponse.json({ success: true, interest: 'account', ekycUrl: null });
-    }
+    const { name, phone, email, interest, message, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, landingPage } = body;
 
     // Server-side validation — shared helpers from src/lib/validation.ts
     const errors: ValidationErrors = {};
@@ -57,11 +67,8 @@ export async function POST(request: NextRequest) {
     const finalPhone = validateIndianPhone(phone, errors);
     const finalEmail = validateEmail(email, errors);
 
-    let validInterest: string | null = null;
     if (!interest || !VALID_INTERESTS.has(interest)) {
       errors.interest = 'Please select a valid option.';
-    } else {
-      validInterest = interest;
     }
 
     const finalMessage = validateOptionalString(
@@ -88,7 +95,7 @@ export async function POST(request: NextRequest) {
         name: finalName!,
         phone: finalPhone!,
         email: finalEmail!,
-        interest: validInterest!,
+        interest,
         message: finalMessage,
         source: 'website',
         utmSource: utmSourceTrim,
@@ -102,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     // Determine redirect URL for Angel One eKYC
     let ekycUrl: string | null = null;
-    if (validInterest === 'account' || validInterest === 'both') {
+    if (interest === 'account' || interest === 'both') {
       // Angel One referral signup link (placeholder — replace with actual referral URL)
       ekycUrl = 'https://angelone.in/?ref=systematicyield';
     }
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
       success: true,
       leadId: lead.id,
       firstName: finalName!.split(' ')[0],
-      interest: validInterest,
+      interest,
       ekycUrl,
     });
   } catch (error) {
@@ -123,43 +130,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/* ─── GET (admin) ─── */
-
-const FILTER_INTERESTS = new Set(['account', 'courses', 'both']);
-
-/** Build the shared Prisma `where` from query params so the JSON list and the
- *  CSV export apply identical filters: ?interest=, ?since= (ISO cutoff),
- *  ?q= (case-insensitive name/email/phone search). All optional. */
-function buildLeadWhere(searchParams: URLSearchParams) {
-  const where: {
-    interest?: string;
-    createdAt?: { gte: Date };
-    OR?: Array<Record<string, { contains: string; mode: 'insensitive' }>>;
-  } = {};
-
-  const interest = searchParams.get('interest');
-  if (interest && FILTER_INTERESTS.has(interest)) where.interest = interest;
-
-  const sinceRaw = searchParams.get('since');
-  if (sinceRaw) {
-    const since = new Date(sinceRaw);
-    if (!Number.isNaN(since.getTime())) where.createdAt = { gte: since };
-  }
-
-  const q = searchParams.get('q')?.trim();
-  if (q) {
-    where.OR = [
-      { name: { contains: q, mode: 'insensitive' } },
-      { email: { contains: q, mode: 'insensitive' } },
-      { phone: { contains: q, mode: 'insensitive' } },
-    ];
-  }
-
-  return where;
-}
-
-// GET endpoint for admin (count + filtered/paginated leads + week/month stats)
-// — requires admin session
+// GET endpoint for admin (count + recent leads) — requires admin session
 export async function GET(request: NextRequest) {
   if (!(await verifyAdmin(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -167,13 +138,11 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const format = searchParams.get('format');
-  const where = buildLeadWhere(searchParams);
 
-  // CSV export — filtered server-side by the same params the UI uses
+  // CSV export
   if (format === 'csv') {
     try {
       const leads = await db.lead.findMany({
-        where,
         orderBy: { createdAt: 'desc' },
         select: {
           name: true, phone: true, email: true, interest: true,
@@ -219,32 +188,23 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // Default JSON response — filtered + paginated via ?page=N&pageSize=M
+  // Default JSON response — supports pagination via ?page=N&pageSize=M
   try {
-    const page = parseBoundedInt(searchParams.get('page'), { default: 1, min: 1, max: 10_000 });
-    const pageSize = parseBoundedInt(searchParams.get('pageSize'), { default: 10, min: 1, max: 50 });
+    const page = Math.max(parseInt(searchParams.get('page') ?? '1', 10) || 1, 1);
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') ?? '10', 10) || 10, 1), 50);
     const skip = (page - 1) * pageSize;
 
-    const now = Date.now();
-    const weekStart = new Date(now - 7 * 24 * 60 * 60 * 1000);
-    const monthStart = new Date(now - 30 * 24 * 60 * 60 * 1000);
-
-    const [total, recent, thisWeek, thisMonth] = await Promise.all([
-      db.lead.count({ where }),
+    const [total, recent] = await Promise.all([
+      db.lead.count(),
       db.lead.findMany({
-        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
         select: {
-          id: true,
           name: true, phone: true, email: true, interest: true,
-          message: true, // added back to JSON response so admin drawer shows it without a second fetch
           createdAt: true, utmSource: true, utmMedium: true, utmCampaign: true,
         },
       }),
-      db.lead.count({ where: { createdAt: { gte: weekStart } } }),
-      db.lead.count({ where: { createdAt: { gte: monthStart } } }),
     ]);
     return NextResponse.json({
       total,
@@ -252,7 +212,6 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
-      stats: { thisWeek, thisMonth },
     });
   } catch (error) {
     console.error('Leads fetch error:', error);

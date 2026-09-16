@@ -9,22 +9,14 @@
 /* ═══════════════ Types ═══════════════ */
 
 export interface Lead {
-  id: string;
   name: string;
   phone: string;
   email: string;
   interest: string;
-  message?: string | null;
   createdAt: string;
   utmSource?: string | null;
   utmMedium?: string | null;
   utmCampaign?: string | null;
-}
-
-/** Rolling-window lead counts returned by GET /api/leads. */
-export interface LeadsStats {
-  thisWeek: number;
-  thisMonth: number;
 }
 
 export interface BlogPost {

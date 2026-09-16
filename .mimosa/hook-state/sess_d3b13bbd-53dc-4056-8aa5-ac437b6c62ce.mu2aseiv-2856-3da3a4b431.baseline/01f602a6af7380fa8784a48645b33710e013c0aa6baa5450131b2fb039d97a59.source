@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
 /**
  * POST /api/blogs/[slug]/view — increments the view count for a published post.
@@ -15,24 +14,16 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit';
  * slugs doesn't get a 200 that pollutes view counts). Silently ignores DB
  * errors so a view-tracking failure never breaks the reading experience.
  *
- * Rate-limiting: max 10 increments per minute per IP+slug. View counts power
- * "popular posts" ordering, so a scripted repeat-POST loop must not be able to
- * reshuffle the site's content ranking for free. The client also dedupes per
- * browser session, so a normal reader never hits this limit.
+ * No rate-limiting: a single increment per page-load is the intended UX. A
+ * determined abuser could inflate counts, but view counts are display-only
+ * (they power "popular posts" sorting) and carry no financial or auth weight.
  */
-const VIEW_RATE_MAX = 10;
-const VIEW_RATE_WINDOW = 60_000;
-
 export async function POST(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await params;
-    const rl = rateLimit(`view:${getClientIp(request)}:${slug}`, VIEW_RATE_MAX, VIEW_RATE_WINDOW);
-    if (!rl.ok) {
-      return new NextResponse(null, { status: 429 });
-    }
     const post = await db.blogPost.findUnique({
       where: { slug },
       select: { id: true, published: true },

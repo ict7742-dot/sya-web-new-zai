@@ -10,21 +10,38 @@ import {
   validationErrorResponse,
 } from '@/lib/validation';
 import { safeCsvCell } from '@/lib/csv';
-import { rateLimit, getClientIp } from '@/lib/rate-limit';
 
+// Per-IP rate limit (in-memory, same pattern as leads).
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_LIMIT_WINDOW = 60_000; // 1 minute
 const RATE_LIMIT_MAX = 5; // max 5 newsletter signups / min / IP
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+function getClientIp(req: NextRequest): string {
+  const raw = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim();
+  if (raw && /^[0-9a-fA-F.:]+$/.test(raw)) return raw;
+  return 'unknown';
+}
 
 const VALID_SOURCES = new Set(['blog', 'footer', 'landing']);
 
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const rl = rateLimit(`newsletter:${ip}`, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW);
-    if (!rl.ok) {
+    if (isRateLimited(ip)) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait a moment before trying again.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } }
+        { status: 429 }
       );
     }
     if (bodyTooLarge(request)) {
@@ -109,9 +126,8 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') ?? '10', 10) || 10, 1), 50);
     const skip = (page - 1) * pageSize;
 
-    const [total, activeCount, recent] = await Promise.all([
+    const [total, recent] = await Promise.all([
       db.newsletterSubscriber.count(),
-      db.newsletterSubscriber.count({ where: { active: true } }),
       db.newsletterSubscriber.findMany({
         orderBy: { createdAt: 'desc' },
         skip,
@@ -121,7 +137,6 @@ export async function GET(request: NextRequest) {
     ]);
     return NextResponse.json({
       total,
-      activeCount,
       recent,
       page,
       pageSize,

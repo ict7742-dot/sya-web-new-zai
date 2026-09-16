@@ -218,24 +218,11 @@ export function BackToTop() {
  * counts reflect real readers. Renders nothing (returns null). Uses a void
  * promise + no error surfacing — a view-tracking failure must never break the
  * reading experience.
- *
- * Dedupe: each slug is counted at most once per browser session (refreshes,
- * back-navigation, and StrictMode double-mounts don't re-count), and obvious
- * automation (navigator.webdriver — Puppeteer/Playwright defaults) is skipped.
  */
 export function ViewTracker({ slug }: { slug: string }) {
   useEffect(() => {
-    if (typeof navigator !== 'undefined' && navigator.webdriver) return;
-    const storageKey = `sya:viewed:${slug}`;
-    try {
-      if (sessionStorage.getItem(storageKey)) return;
-      sessionStorage.setItem(storageKey, '1');
-    } catch {
-      // Private-browsing modes can throw on storage access — count anyway
-      // rather than silently dropping every real reader.
-    }
     // fire-and-forget — no await, no state, no error handling
-    void fetch(`/api/blogs/${encodeURIComponent(slug)}/view`, { method: 'POST', keepalive: true });
+    void fetch(`/api/blogs/${encodeURIComponent(slug)}/view`, { method: 'POST' });
   }, [slug]);
   return null;
 }

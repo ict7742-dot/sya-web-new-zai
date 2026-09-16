@@ -14,7 +14,6 @@ import {
 import {
   SyaLogo,
   type Lead,
-  type LeadsStats,
   type Tab,
 } from './lib';
 import { LeadsTab } from './LeadsTab';
@@ -33,9 +32,6 @@ import { SubscribersTab } from './SubscribersTab';
 export default function AdminPage() {
   // Auth
   const [authed, setAuthed] = useState(false);
-  /** True until the existing-session check finishes — prevents the login form
-   *  from flashing at cookie-carrying visitors. */
-  const [sessionChecking, setSessionChecking] = useState(true);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -47,7 +43,6 @@ export default function AdminPage() {
   // Initial leads (prefetched on login so the shell can pass them to LeadsTab)
   const [initialLeads, setInitialLeads] = useState<Lead[]>([]);
   const [initialTotalLeads, setInitialTotalLeads] = useState(0);
-  const [initialStats, setInitialStats] = useState<LeadsStats>({ thisWeek: 0, thisMonth: 0 });
 
   // Toast (lifted; tabs call onToast)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -63,7 +58,6 @@ export default function AdminPage() {
     setPassword('');
     setInitialLeads([]);
     setInitialTotalLeads(0);
-    setInitialStats({ thisWeek: 0, thisMonth: 0 });
   }, []);
 
   // Session-expiry callback (passed to tabs — fires when a tab's fetch hits 401)
@@ -95,10 +89,6 @@ export default function AdminPage() {
         const data = await leadsRes.json();
         setInitialLeads(data.recent || []);
         setInitialTotalLeads(data.total || 0);
-        setInitialStats(data.stats || { thisWeek: 0, thisMonth: 0 });
-      } else {
-        // Dashboard still loads — LeadsTab will surface its own fetch error.
-        showToast('Signed in, but the leads list failed to load. Refresh the Leads tab.', 'error');
       }
       setLoginLoading(false);
     } catch {
@@ -117,24 +107,12 @@ export default function AdminPage() {
           const data = await res.json();
           setInitialLeads(data.recent || []);
           setInitialTotalLeads(data.total || 0);
-          setInitialStats(data.stats || { thisWeek: 0, thisMonth: 0 });
         }
       } catch { /* not logged in */ }
-      setSessionChecking(false);
     })();
   }, []);
 
-  /* ═══════════════ Render ═══════════════ */
-
-  // Session check in flight — render a neutral loader instead of flashing the
-  // login form at admins who already hold a valid session cookie.
-  if (sessionChecking && !authed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-cf-bg">
-        <Loader2 size={24} className="animate-spin text-cf-gold" aria-label="Checking session" />
-      </div>
-    );
-  }
+  /* ═══════════════ Render: Login ═══════════════ */
 
   if (!authed) {
     return (
@@ -285,7 +263,6 @@ export default function AdminPage() {
           <LeadsTab
             initialLeads={initialLeads}
             initialTotal={initialTotalLeads}
-            initialStats={initialStats}
             onUnauthorized={onUnauthorized}
             onToast={showToast}
           />
