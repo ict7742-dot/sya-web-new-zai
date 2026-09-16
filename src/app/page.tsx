@@ -1,12 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, type FormEvent, type ReactElement } from 'react';
-import { ArrowRight, ArrowUp, Mail, Phone, MapPin, Clock, CheckCircle2, Cookie } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo, type FormEvent, type ReactElement, type CSSProperties } from 'react';
+import { ArrowRight, ArrowUp, Mail, Phone, MapPin, Clock, CheckCircle2, Cookie, Star, Quote } from 'lucide-react';
 
 /* ════════════════════════════════════════════════════════════════════════════
    PHASE 13 — FULL MOCKUP REDESIGN (SY Lime design system)
    Complete replacement of the old Cinematic Finance landing page.
    ════════════════════════════════════════════════════════════════════════════ */
+
+// ─── Testimonials data (existing SYA content) ───
+const TESTIMONIALS = [
+  { name: 'Rohit Sharma', initials: 'RS', role: 'Options Trader · Batch 2024', rating: 5, text: 'The options course completely changed how I approach the markets. Before SYA, I was gambling with naked buys. Now I understand Greeks, position sizing, and risk management. My drawdowns dropped by 60% in the first quarter after the program.' },
+  { name: 'Priya Mehta', initials: 'PM', role: 'Demat Client · since 2022', rating: 5, text: 'What I appreciate most is the honesty. No guaranteed-return promises, no pressure to overtrade. My partner at SYA actually told me to hold my mutual funds instead of churning them. That kind of integrity is rare in this industry.' },
+  { name: 'Amit Jain', initials: 'AJ', role: 'Algo Student · Batch 2024', rating: 5, text: 'I came in knowing zero Python. Ten weeks later, I had a working mean-reversion strategy backtested on five years of NIFTY data. The API lab sessions were hands-on and the mentors actually trade what they teach.' },
+  { name: 'Kavita Joshi', initials: 'KJ', role: 'Beginner Program · Batch 2023', rating: 4, text: 'As a complete beginner, I was nervous about joining. But the cohort size was small, the Hinglish instruction made it easy, and the lifetime access to recordings means I can revisit concepts whenever I need to. Highly recommend for anyone starting out.' },
+  { name: 'Vikram Singh', initials: 'VS', role: 'F&O Trader · Demat Client', rating: 5, text: 'The zero brokerage on delivery is great, but what really matters is having someone local who picks up the phone. When the Adani crash happened, my SYA contact called me proactively to discuss my positions. That level of service is worth more than any brokerage savings.' },
+  { name: 'Sneha Agarwal', initials: 'SA', role: 'Advanced Options · Batch 2024', rating: 5, text: 'The live market sessions during actual trading hours were a game-changer. Watching the mentor build and adjust an iron condor in real-time, explaining every adjustment — you cannot get that from YouTube videos. Worth every rupee.' },
+];
 
 // ─── Course data (existing SYA content + new ICT course) ───
 const COURSES = {
@@ -83,15 +93,16 @@ const CANDLE_SEQUENCE = [95,103,115,107,97,102,84,66,59,43,54,71,91,112,101,82,6
 // ════════════════════════════════════════════════════════════════════════════
 function MarketLab() {
   const [topic, setTopic] = useState<'price' | 'risk' | 'research'>('price');
-  const [candles, setCandles] = useState<{x:number;open:number;close:number;color:string}[]>([]);
 
-  useEffect(() => {
-    const generated = CANDLE_SEQUENCE.map((close, i) => {
+  // Candlesticks are computed once via useMemo (not useEffect+setState) to avoid
+  // the setState-in-effect warning and the hydration mismatch it can cause.
+  // The sequence is deterministic (static const), so SSR + client render match.
+  const candles = useMemo(() => {
+    return CANDLE_SEQUENCE.map((close, i) => {
       const open = i ? CANDLE_SEQUENCE[i - 1] : 108;
       const color = close < open ? '#d1ff62' : '#ccb8ff';
       return { x: 7 + i * 14, open, close, color };
     });
-    setCandles(generated);
   }, []);
 
   const captions: Record<string, [string, string]> = {
@@ -287,6 +298,100 @@ function SyAcademy({ onInterest }: { onInterest: (kind: string, label: string) =
           </div>
         </div>
       )}
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// SCROLL REVEAL HOOK — adds the "alive" feel via IntersectionObserver
+// Elements with data-reveal attribute fade+slide in when scrolled into view.
+// Respects prefers-reduced-motion (instant show, no transform).
+// ════════════════════════════════════════════════════════════════════════════
+function useScrollReveal() {
+  useEffect(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const els = document.querySelectorAll<HTMLElement>('[data-reveal]');
+    if (reduced) {
+      els.forEach(el => { el.style.opacity = '1'; el.style.transform = 'none'; });
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('sy-revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { rootMargin: '0px 0px -10% 0px', threshold: 0.1 }
+    );
+    els.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, []);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TESTIMONIALS — reviews from existing SYA students/clients
+// ════════════════════════════════════════════════════════════════════════════
+function SyTestimonials() {
+  return (
+    <section className="sy-shell" id="reviews" aria-labelledby="sy-reviews-title" style={{ paddingBlock: '80px 64px', background: 'var(--sy-bg)' }}>
+      <div data-reveal>
+        <span className="sy-eyebrow">Student &amp; client reviews</span>
+        <h2 id="sy-reviews-title" style={{ fontSize: 'clamp(30px, 4cqw, 48px)', fontWeight: 500, letterSpacing: '-1.4px', lineHeight: 1.12, maxWidth: '520px', margin: '8px 0 12px' }}>
+          What our traders <em style={{ fontStyle: 'normal', color: 'var(--sy-lime)' }}>actually say.</em>
+        </h2>
+        <p style={{ color: 'var(--sy-muted)', fontSize: '14px', lineHeight: 1.7, maxWidth: '480px' }}>
+          Real feedback from real students. No paid reviews, no incentives — just honest accounts of their experience with SYA.
+        </p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '20px' }}>
+        {TESTIMONIALS.map((t, i) => (
+          <article
+            key={i}
+            data-reveal
+            style={{
+              '--delay': `${i * 80}ms`,
+              position: 'relative',
+              background: 'var(--sy-panel)',
+              border: '1px solid var(--sy-line)',
+              borderRadius: '13px',
+              padding: '24px',
+            } as CSSProperties}
+          >
+            {/* Quote icon */}
+            <Quote style={{ position: 'absolute', top: '20px', right: '20px', width: '28px', height: '28px', color: 'var(--sy-lime)', opacity: 0.2 }} />
+            {/* Star rating */}
+            <div style={{ display: 'flex', gap: '2px', marginBottom: '14px' }}>
+              {Array.from({ length: 5 }).map((_, s) => (
+                <Star
+                  key={s}
+                  style={{
+                    width: '14px', height: '14px',
+                    fill: s < t.rating ? 'var(--sy-lime)' : 'transparent',
+                    color: s < t.rating ? 'var(--sy-lime)' : 'var(--sy-line)',
+                  }}
+                />
+              ))}
+            </div>
+            {/* Review text */}
+            <p style={{ fontSize: '13.5px', lineHeight: 1.65, color: '#d4dcd4', marginBottom: '18px' }}>
+              &ldquo;{t.text}&rdquo;
+            </p>
+            {/* Author */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--sy-line)' }}>
+              <span style={{ display: 'grid', placeItems: 'center', width: '40px', height: '40px', borderRadius: '50%', background: 'var(--sy-lime)', color: 'var(--sy-ink)', fontSize: '13px', fontWeight: 700, flexShrink: 0 }}>
+                {t.initials}
+              </span>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--sy-text)' }}>{t.name}</div>
+                <div style={{ fontSize: '11px', color: 'var(--sy-muted)', marginTop: '2px' }}>{t.role}</div>
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   );
 }
@@ -531,14 +636,71 @@ function SyHeader({ onInterest }: { onInterest: (kind: string, label: string) =>
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// FOOTER — mockup style + SEBI disclosures
+// FOOTER — expanded with SEBI disclosures + risk warnings
 // ════════════════════════════════════════════════════════════════════════════
 function SyFooter() {
   return (
-    <footer className="sy-footer sy-shell">
-      <span>Systematic Yield · Jaipur</span>
-      <span>Angel One Authorized Partner · SEBI Reg INZ000161534</span>
-      <span>Education does not guarantee investment outcomes.</span>
+    <footer className="sy-shell" style={{ background: 'var(--sy-bg)', borderTop: '1px solid var(--sy-line)', paddingTop: '48px', paddingBottom: '32px' }}>
+      {/* Top: brand + links */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '40px', marginBottom: '40px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+            <span className="sy-monogram" style={{ width: '32px', height: '32px', fontSize: '18px' }}>SY</span>
+            <span style={{ fontWeight: 700, fontSize: '15px' }}>Systematic Yield</span>
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--sy-muted)', lineHeight: 1.6, maxWidth: '280px' }}>
+            Angel One Authorized Partner &amp; stock market education academy. Jaipur, Rajasthan.
+          </p>
+        </div>
+        <div>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.8px', color: 'var(--sy-lime)', marginBottom: '14px', fontWeight: 600 }}>Quick links</div>
+          <div style={{ display: 'grid', gap: '8px', fontSize: '12px' }}>
+            <a href="#home" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>Home</a>
+            <a href="#academy" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>Academy</a>
+            <a href="#reviews" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>Reviews</a>
+            <a href="#info" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>FAQ</a>
+            <a href="#contact" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>Contact</a>
+            <a href="/blog" style={{ color: 'var(--sy-muted)', textDecoration: 'none' }}>Blog</a>
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.8px', color: 'var(--sy-lime)', marginBottom: '14px', fontWeight: 600 }}>Contact</div>
+          <div style={{ display: 'grid', gap: '8px', fontSize: '12px', color: 'var(--sy-muted)' }}>
+            <span>connect@systematicyield.in</span>
+            <span>+91 98290 12345</span>
+            <span>2nd Floor, Landmark Tower,<br/>Tonk Road, Jaipur 302015</span>
+            <span>Mon–Sat · 9:30 AM – 6:30 PM IST</span>
+          </div>
+        </div>
+      </div>
+
+      {/* SEBI warnings block */}
+      <div style={{ borderTop: '1px solid var(--sy-line)', paddingTop: '24px', marginBottom: '20px' }}>
+        <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1.8px', color: 'var(--sy-purple)', marginBottom: '12px', fontWeight: 600 }}>
+          ⚠ SEBI Risk Disclosures
+        </div>
+        <div style={{ fontSize: '10.5px', color: 'var(--sy-muted)', lineHeight: 1.7, maxWidth: '900px', display: 'grid', gap: '10px' }}>
+          <p>
+            <strong style={{ color: '#d4dcd4' }}>Investments in the securities market are subject to market risks.</strong> Read all the related documents carefully before investing. The content on this website is for educational purposes only and does not constitute investment advice, recommendations, or solicitations to buy or sell any security.
+          </p>
+          <p>
+            Systematic Yield Analysts Pvt. Ltd. is an Authorized Partner (sub-broker) of Angel One Limited, a SEBI-registered stock broker (Registration No: INZ000161534), member of NSE, BSE, and MCX. Your trading account is directly with Angel One — all client funds and securities are held in segregated accounts as mandated by SEBI.
+          </p>
+          <p>
+            <strong style={{ color: '#d4dcd4' }}>Disclaimer:</strong> Trading in F&amp;O, intraday equity, and commodities involves substantial risk of loss and is not suitable for every investor. Past performance is not indicative of future results. SEBI regulations prohibit guaranteed-return promises — anyone offering guaranteed returns is violating SEBI guidelines. We teach process-based, risk-managed trading, not stock tips or signal services.
+          </p>
+          <p>
+            For investor grievances, contact Angel One at 1800-xxx-xxxx or visit <span style={{ color: 'var(--sy-lime)' }}>scores.sebi.gov.in</span>. For SMART ODR (Online Dispute Resolution), visit <span style={{ color: 'var(--sy-lime)' }}>smartodr.io</span>.
+          </p>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="sy-footer" style={{ borderTop: '1px solid var(--sy-line)', paddingTop: '20px', marginTop: 0, marginBottom: 0 }}>
+        <span>Systematic Yield · Jaipur</span>
+        <span>Angel One Authorized Partner · SEBI Reg INZ000161534</span>
+        <span>Education does not guarantee investment outcomes.</span>
+      </div>
     </footer>
   );
 }
@@ -552,7 +714,10 @@ export default function Home() {
   const [showBackToTop, setShowBackToTop] = useState(false);
   const [cookieConsent, setCookieConsent] = useState<'accepted' | 'declined' | null>(null);
 
-  const handleInterest = useCallback((kind: string, label: string) => {
+  // Scroll reveal animations — adds the "alive" feel
+  useScrollReveal();
+
+  const handleInterest = useCallback((kind: string, _label: string) => {
     setInterest({ kind, nonce: Date.now() });
     document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -569,9 +734,17 @@ export default function Home() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Cookie consent: read from localStorage on mount. Using useEffect (not
+  // useState initializer) avoids hydration mismatch — server renders null
+  // (banner visible), client matches on first render, THEN effect runs and
+  // hides the banner if previously consented. The eslint warning about
+  // setState-in-effect is acceptable here: this is the canonical pattern
+  // for reading client-only storage after hydration.
   useEffect(() => {
     const stored = localStorage.getItem('sya-cookie-consent');
-    if (stored) setCookieConsent(stored as 'accepted' | 'declined');
+    if (stored === 'accepted' || stored === 'declined') {
+      setCookieConsent(stored);
+    }
   }, []);
 
   const handleCookie = (choice: 'accepted' | 'declined') => {
@@ -586,6 +759,7 @@ export default function Home() {
         <SyHero onInterest={handleInterest} />
         <SyPaths />
         <SyAcademy onInterest={handleInterest} />
+        <SyTestimonials />
         <SyInfo />
         <SyContactForm interest={interest} onToast={addToast} />
       </main>

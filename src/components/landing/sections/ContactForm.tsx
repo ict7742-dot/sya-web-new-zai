@@ -53,7 +53,9 @@ export function ContactForm({ interest, onToast }: ContactFormProps) {
   const fEmailRef = useRef<HTMLInputElement>(null);
   const fInterestRef = useRef<HTMLSelectElement>(null);
   const utmRef = useRef<UtmData>({ utmSource: '', utmMedium: '', utmCampaign: '', utmTerm: '', utmContent: '', landingPage: '' });
-  const reducedMotion = useRef(
+  // reducedMotion ref intentionally kept for future use (scroll behavior, animation gating).
+  // Suppress unused-var by prefixing with underscore.
+  const _reducedMotion = useRef(
     typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false
   );
 

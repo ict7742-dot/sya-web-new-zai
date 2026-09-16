@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db } from '@/lib/db';
 import { BlogBrowser, type BlogListPost } from '../../blog-browser';
-import { ArrowLeft, FileText, PenLine, Calendar } from 'lucide-react';
+import { ArrowLeft, FileText, PenLine } from 'lucide-react';
 
 type Params = { name: string };
 

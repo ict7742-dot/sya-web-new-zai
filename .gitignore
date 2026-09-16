@@ -98,3 +98,5 @@ review-*.png
 /mini-services/
 dev.db
 prisma/*.db
+.mimosa/
+.zcode/

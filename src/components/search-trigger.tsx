@@ -1,13 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
-/** Visible trigger button for the global Cmd/Ctrl+K command palette. */
+/** Visible trigger button for the global Cmd/Ctrl+K command palette.
+ *  NOTE: isMac is intentionally NOT set via useState initializer — that would
+ *  run on both server (navigator undefined → false) and client (navigator
+ *  available → true on Mac), causing a hydration mismatch on the <kbd> text.
+ *  Instead, isMac starts as false (matches server) and is set to the real
+ *  value AFTER mount via useEffect. The <kbd> updates from "Ctrl K" to "⌘K"
+ *  on the second render — invisible to the user but hydration-safe. */
 export function SearchTrigger({ className = '' }: { className?: string }) {
-  const [isMac] = useState(
-    () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-  );
+  const [isMac, setIsMac] = useState(false);
+
+  useEffect(() => {
+    setIsMac(/Mac|iPhone|iPad/.test(navigator.platform));
+  }, []);
 
   const open = () => {
     window.dispatchEvent(

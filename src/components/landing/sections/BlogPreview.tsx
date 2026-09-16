@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ArrowRight, BookOpen, FileText, Clock } from 'lucide-react';
 import { LazySection } from '@/components/landing/lazy-section';
 
@@ -132,12 +133,12 @@ export function BlogPreview() {
           {/* View all CTA */}
           {posts.length > 0 && (
             <div className="mt-10 text-center animate-cf-reveal-up [animation-delay:320ms]">
-              <a
+              <Link
                 href="/blog"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-md border border-cf-gold/30 text-cf-text font-semibold text-[14px] transition-all duration-240 ease-cinematic hover:border-cf-gold/60 hover:text-cf-gold"
               >
                 View all insights <ArrowRight className="w-4 h-4" />
-              </a>
+              </Link>
             </div>
           )}
         </div>

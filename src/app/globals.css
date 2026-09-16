@@ -1487,6 +1487,86 @@ a.blog-card-cat:hover {
 .sy-info summary { cursor: pointer; font-size: 13px; color: #ecf3e8; min-height: 23px; }
 .sy-info details p { font-size: 12px; padding-left: 15px; color: #b8c3ba; margin-top: 8px; line-height: 1.6; }
 .sy-footer { padding-top: 20px; padding-bottom: 20px; display: flex; gap: 16px; align-items: center; justify-content: space-between; font-size: 11px; color: #b8c3ba; border-top: 1px solid #354337; flex-wrap: wrap; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Phase 13: SCROLL REVEAL ANIMATIONS — makes the site feel alive.
+   Elements with [data-reveal] start invisible + translated down. When the
+   IntersectionObserver fires, .sy-revealed is added → opacity:1 + transform:none
+   with a smooth 600ms transition. Staggered via inline --delay CSS var.
+   Respects prefers-reduced-motion (instant show, no transform).
+   ════════════════════════════════════════════════════════════════════════════ */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 600ms cubic-bezier(0.22, 1, 0.36, 1), transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
+}
+[data-reveal].sy-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Hero section entrance animations — staggered fade-in on load */
+@keyframes sy-hero-fade-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.sy-hero .sy-copy > * { animation: sy-hero-fade-up 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-hero .sy-copy > .sy-eyebrow { animation-delay: 0ms; }
+.sy-hero .sy-copy > h1 { animation-delay: 100ms; }
+.sy-hero .sy-copy > .sy-intro { animation-delay: 200ms; }
+.sy-hero .sy-copy > .sy-hero-actions { animation-delay: 300ms; }
+.sy-hero .sy-copy > .sy-small { animation-delay: 400ms; }
+.sy-hero .sy-stage { animation: sy-hero-fade-up 800ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: 200ms; }
+
+/* Paths section staggered reveal */
+.sy-paths .sy-path { animation: sy-hero-fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-paths .sy-path:nth-child(1) { animation-delay: 0ms; }
+.sy-paths .sy-path:nth-child(2) { animation-delay: 120ms; }
+.sy-paths .sy-path:nth-child(3) { animation-delay: 240ms; }
+
+/* Academy section header + course card animations */
+.sy-academy .sy-section-head { animation: sy-hero-fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-academy .sy-course { animation: sy-hero-fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-academy .sy-course:nth-child(1) { animation-delay: 0ms; }
+.sy-academy .sy-course:nth-child(2) { animation-delay: 100ms; }
+.sy-academy .sy-course:nth-child(3) { animation-delay: 200ms; }
+.sy-academy .sy-course:nth-child(4) { animation-delay: 300ms; }
+
+/* Info section + FAQ accordions entrance */
+.sy-info .sy-info-grid > div:first-child { animation: sy-hero-fade-up 600ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-info details { animation: sy-hero-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.sy-info details:nth-child(1) { animation-delay: 0ms; }
+.sy-info details:nth-child(2) { animation-delay: 60ms; }
+.sy-info details:nth-child(3) { animation-delay: 120ms; }
+.sy-info details:nth-child(4) { animation-delay: 180ms; }
+.sy-info details:nth-child(5) { animation-delay: 240ms; }
+.sy-info details:nth-child(6) { animation-delay: 300ms; }
+.sy-info details:nth-child(7) { animation-delay: 360ms; }
+
+/* MarketLab subtle pulse on the active tab */
+@keyframes sy-lab-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(209, 255, 98, 0.0); }
+  50% { box-shadow: 0 0 0 4px rgba(209, 255, 98, 0.1); }
+}
+.sy-lab-tabs button[aria-pressed="true"] { animation: sy-lab-pulse 2.5s ease-in-out infinite; }
+
+/* Smooth scroll for in-page navigation */
+html { scroll-behavior: smooth; }
+
+/* Respect reduced motion — disable all animations */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal], .sy-hero .sy-copy > *, .sy-hero .sy-stage,
+  .sy-paths .sy-path, .sy-academy .sy-section-head, .sy-academy .sy-course,
+  .sy-info .sy-info-grid > div:first-child, .sy-info details,
+  .sy-lab-tabs button[aria-pressed="true"] {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html { scroll-behavior: auto; }
+}
 @keyframes sy-content-in { from { opacity: .45; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes sy-orbit-settle { from { opacity: 0; transform: rotate(-40deg) translateY(20px); } to { opacity: 1; transform: rotate(-28deg) translateY(0); } }
 .sy-changing { animation: sy-content-in .24s ease-out; }

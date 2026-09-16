@@ -3,7 +3,7 @@
 import { useMemo, useState, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, Calendar, ArrowUpRight, FileText, Clock } from 'lucide-react';
+import { Search, Calendar, ArrowUpRight, FileText } from 'lucide-react';
 
 export interface BlogListPost {
   id: string;

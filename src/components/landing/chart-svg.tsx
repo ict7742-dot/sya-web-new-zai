@@ -39,7 +39,6 @@ export function ChartSVG({
   xTRRef,
   xTTRef,
   getChartGeom,
-  yOf,
   vOf,
   xOf,
   fmtP,

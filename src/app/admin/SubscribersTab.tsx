@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { Mail, Download, Loader2, Send, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDate, type Subscriber } from './lib';
 

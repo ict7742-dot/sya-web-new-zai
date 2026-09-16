@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2, Eye as EyeIcon } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import {
   formatDate,
   emptyBlogForm,

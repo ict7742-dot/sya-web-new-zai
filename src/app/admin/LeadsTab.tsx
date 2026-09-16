@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Users, Download, Loader2, Filter, X, ChevronDown, ChevronLeft, ChevronRight, Phone, Mail, MessageCircle, Search } from 'lucide-react';
+import { Users, Download, Filter, X, ChevronDown, ChevronLeft, ChevronRight, Phone, Mail, MessageCircle, Search } from 'lucide-react';
 import {
   formatDate,
   getWeekStart,

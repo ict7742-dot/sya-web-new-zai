@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Loader2, CornerDownLeft, ArrowLeft, FileText, X } from 'lucide-react';
+import { Search, Loader2, CornerDownLeft, ArrowLeft, FileText } from 'lucide-react';
 
 interface SearchPost {
   id: string;
