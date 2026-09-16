@@ -181,7 +181,11 @@ function SyHero({ onInterest }: { onInterest: (kind: string, label: string) => v
           </button>
           <a className="sy-action" href="#academy">Explore courses <span aria-hidden="true">→</span></a>
         </div>
-        <p className="sy-small">Angel One partner · Local support in Jaipur</p>
+        {/* Angel One partnership highlight — logo + trust statement */}
+        <div className="sy-hero-partner">
+          <img src="/angel-one-logo.svg" alt="Angel One" width="90" height="20" />
+          <span>Authorized Partner · SEBI Reg INZ000161534</span>
+        </div>
       </div>
       <div className="sy-stage">
         <div className="sy-orbits" aria-hidden="true">
@@ -625,6 +629,18 @@ function SyHeader({ onInterest }: { onInterest: (kind: string, label: string) =>
           <a key={l.id} onClick={() => scrollTo(l.id)}>{l.label}</a>
         ))}
       </nav>
+      {/* Angel One Authorized Partner badge — highlights the partnership */}
+      <a
+        href="https://angelone.in/?ref=systematicyield"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="sy-angel-badge"
+        title="Systematic Yield Analysts is an Authorized Partner of Angel One Limited (SEBI Reg INZ000161534)"
+        aria-label="Angel One Authorized Partner"
+      >
+        <img src="/angel-one-logo.svg" alt="" width="80" height="18" style={{ display: 'block' }} />
+        <span className="sy-angel-badge-text">Authorized Partner</span>
+      </a>
       <button className="sy-action sy-primary" onClick={() => onInterest('account', 'Demat account onboarding')}>
         Open an account <span aria-hidden="true">↗</span>
       </button>
@@ -648,9 +664,14 @@ function SyFooter() {
             <span className="sy-monogram" style={{ width: '32px', height: '32px', fontSize: '18px' }}>SY</span>
             <span style={{ fontWeight: 700, fontSize: '15px' }}>Systematic Yield</span>
           </div>
-          <p style={{ fontSize: '12px', color: 'var(--sy-muted)', lineHeight: 1.6, maxWidth: '280px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--sy-muted)', lineHeight: 1.6, maxWidth: '280px', marginBottom: '16px' }}>
             Angel One Authorized Partner &amp; stock market education academy. Jaipur, Rajasthan.
           </p>
+          {/* Angel One logo in footer */}
+          <a href="https://angelone.in/?ref=systematicyield" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '8px 12px', border: '1px solid rgba(244, 99, 30, 0.3)', borderRadius: '8px', background: 'rgba(244, 99, 30, 0.06)', textDecoration: 'none' }}>
+            <img src="/angel-one-logo.svg" alt="Angel One" width="70" height="16" />
+            <span style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#f4a371', borderLeft: '1px solid rgba(244, 99, 30, 0.25)', paddingLeft: '8px' }}>Authorized Partner</span>
+          </a>
         </div>
         <div>
           <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1.8px', color: 'var(--sy-lime)', marginBottom: '14px', fontWeight: 600 }}>Quick links</div>

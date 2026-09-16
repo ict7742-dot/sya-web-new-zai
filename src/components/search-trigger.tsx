@@ -4,12 +4,16 @@ import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 
 /** Visible trigger button for the global Cmd/Ctrl+K command palette.
- *  NOTE: isMac is intentionally NOT set via useState initializer — that would
- *  run on both server (navigator undefined → false) and client (navigator
- *  available → true on Mac), causing a hydration mismatch on the <kbd> text.
- *  Instead, isMac starts as false (matches server) and is set to the real
- *  value AFTER mount via useEffect. The <kbd> updates from "Ctrl K" to "⌘K"
- *  on the second render — invisible to the user but hydration-safe. */
+ *
+ *  HYDRATION-SAFE PATTERN:
+ *  - Server renders "Ctrl K" (isMac=false)
+ *  - Client first render also renders "Ctrl K" (isMac=false) → matches server
+ *  - useEffect runs AFTER hydration → setIsMac(true) on Mac
+ *  - Second client render shows "⌘K"
+ *  - The <kbd> uses suppressHydrationWarning because the text is intentionally
+ *    client-determined (depends on navigator.platform, which is client-only)
+ *
+ *  This is the canonical React pattern for client-only values. */
 export function SearchTrigger({ className = '' }: { className?: string }) {
   const [isMac, setIsMac] = useState(false);
 
@@ -31,7 +35,9 @@ export function SearchTrigger({ className = '' }: { className?: string }) {
     >
       <Search className="h-4 w-4" />
       <span className="hidden sm:inline">Search…</span>
-      <kbd className="hidden sm:inline-flex">{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+      <kbd className="hidden sm:inline-flex" suppressHydrationWarning>
+        {isMac ? '⌘K' : 'Ctrl K'}
+      </kbd>
     </button>
   );
 }

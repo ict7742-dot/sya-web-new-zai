@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 28" fill="none">
+  <!-- Angel One logo lockup — simplified wordmark with brand mark.
+       Brand mark: stylized "A" with upward arrow (representing growth/market upside).
+       Color: Angel One brand orange #F4631E + dark text for light backgrounds.
+       For dark backgrounds, text is white. This SVG uses currentColor for text
+       so it adapts to the parent's color. -->
+  <g>
+    <!-- Brand mark: stylized A + arrow -->
+    <path d="M2 24 L8 4 L14 24 M5 18 L11 18" stroke="#F4631E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <!-- Upward arrow tip on top of A -->
+    <path d="M8 1 L11 5 L5 5 Z" fill="#F4631E"/>
+  </g>
+  <!-- Wordmark -->
+  <text x="20" y="19" font-family="'DM Sans', system-ui, sans-serif" font-size="14" font-weight="700" fill="currentColor" letter-spacing="-0.3">
+    Angel One
+  </text>
+</svg>
