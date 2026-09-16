@@ -1,17 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 28" fill="none">
-  <!-- Angel One logo lockup — simplified wordmark with brand mark.
-       Brand mark: stylized "A" with upward arrow (representing growth/market upside).
-       Color: Angel One brand orange #F4631E + dark text for light backgrounds.
-       For dark backgrounds, text is white. This SVG uses currentColor for text
-       so it adapts to the parent's color. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 32" fill="none">
+  <!-- Angel One logo — official brand orange #F4631E + wordmark
+       Based on the Angel One visual identity: orange triangular mark
+       + "Angel One" wordmark in a bold geometric sans-serif.
+       Text uses currentColor so it adapts to light/dark backgrounds. -->
   <g>
-    <!-- Brand mark: stylized A + arrow -->
-    <path d="M2 24 L8 4 L14 24 M5 18 L11 18" stroke="#F4631E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <!-- Upward arrow tip on top of A -->
-    <path d="M8 1 L11 5 L5 5 Z" fill="#F4631E"/>
+    <!-- Brand mark: stylized triangle/arrow representing growth + the "A" in Angel -->
+    <path d="M16 4 L4 28 L12 28 L16 20 L20 28 L28 28 Z" fill="#F4631E"/>
+    <!-- Inner accent: lighter orange triangle -->
+    <path d="M16 12 L12 22 L20 22 Z" fill="#FF8C42"/>
   </g>
-  <!-- Wordmark -->
-  <text x="20" y="19" font-family="'DM Sans', system-ui, sans-serif" font-size="14" font-weight="700" fill="currentColor" letter-spacing="-0.3">
+  <!-- Wordmark: "Angel One" in bold -->
+  <text x="36" y="22" font-family="'DM Sans', system-ui, -apple-system, sans-serif" font-size="16" font-weight="700" fill="currentColor" letter-spacing="-0.3">
     Angel One
   </text>
 </svg>

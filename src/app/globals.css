@@ -1398,38 +1398,150 @@ a.blog-card-cat:hover {
 .sy-header > .sy-action { font-size: 12px; padding: 10px 15px; min-height: 41px; }
 .sy-menu { display: none; color: var(--sy-text); background: transparent; border: 1px solid var(--sy-line); border-radius: 8px; padding: 9px 12px; min-height: 44px; cursor: pointer; }
 
-/* Angel One Authorized Partner badge — in header, between nav and CTA */
+/* Angel One Authorized Partner badge — in header, between nav and CTA.
+   Orange-branded to match Angel One's official brand color #F4631E. */
 .sy-angel-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid rgba(244, 99, 30, 0.3);
-  border-radius: 8px;
-  background: rgba(244, 99, 30, 0.06);
+  padding: 7px 12px;
+  border: 1px solid rgba(244, 99, 30, 0.4);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(244, 99, 30, 0.08), rgba(244, 99, 30, 0.03));
   text-decoration: none;
-  transition: border-color .18s, background .18s;
+  transition: all .18s ease;
   white-space: nowrap;
+  cursor: pointer;
 }
 .sy-angel-badge:hover {
-  border-color: rgba(244, 99, 30, 0.6);
-  background: rgba(244, 99, 30, 0.12);
+  border-color: rgba(244, 99, 30, 0.8);
+  background: linear-gradient(135deg, rgba(244, 99, 30, 0.15), rgba(244, 99, 30, 0.06));
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(244, 99, 30, 0.2);
 }
-.sy-angel-badge img {
-  height: 18px;
-  width: auto;
-}
-.sy-angel-badge-text {
-  font-size: 10px;
+.sy-angel-badge-label {
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #f4a371;
-  border-left: 1px solid rgba(244, 99, 30, 0.25);
-  padding-left: 8px;
+  line-height: 1.2;
+}
+.sy-angel-badge-logo {
+  height: 20px;
+  width: auto;
+  display: block;
+}
+.sy-angel-badge-seal {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #F4631E;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 @media (max-width: 1024px) {
   .sy-angel-badge { display: none; }
+}
+
+/* Angel One partnership badge in hero — larger, more prominent */
+.sy-hero-partner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+  padding: 16px 20px;
+  border: 1px solid rgba(244, 99, 30, 0.3);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(244, 99, 30, 0.08), rgba(244, 99, 30, 0.02));
+  text-decoration: none;
+  transition: all .2s ease;
+  max-width: 460px;
+}
+.sy-hero-partner:hover {
+  border-color: rgba(244, 99, 30, 0.6);
+  background: linear-gradient(135deg, rgba(244, 99, 30, 0.12), rgba(244, 99, 30, 0.04));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(244, 99, 30, 0.15);
+}
+.sy-hero-partner-logo {
+  height: 28px;
+  width: auto;
+  flex-shrink: 0;
+}
+.sy-hero-partner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.sy-hero-partner-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #f4a371;
+  letter-spacing: 0.02em;
+}
+.sy-hero-partner-sub {
+  font-size: 10px;
+  color: var(--sy-muted);
+  letter-spacing: 0.04em;
+}
+.sy-hero-partner-arrow {
+  font-size: 14px;
+  color: #f4a371;
+  flex-shrink: 0;
+  transition: transform .2s ease;
+}
+.sy-hero-partner:hover .sy-hero-partner-arrow {
+  transform: translate(2px, -2px);
+}
+@media (max-width: 640px) {
+  .sy-hero-partner {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 14px 16px;
+  }
+  .sy-hero-partner-arrow { display: none; }
+}
+
+/* Angel One partner badge in footer */
+.sy-footer-angel-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(244, 99, 30, 0.3);
+  border-radius: 9px;
+  background: rgba(244, 99, 30, 0.06);
+  text-decoration: none;
+  transition: all .18s ease;
+}
+.sy-footer-angel-badge:hover {
+  border-color: rgba(244, 99, 30, 0.6);
+  background: rgba(244, 99, 30, 0.12);
+}
+.sy-footer-angel-logo {
+  height: 22px;
+  width: auto;
+}
+.sy-footer-angel-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sy-footer-angel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f4a371;
+  letter-spacing: 0.02em;
+}
+.sy-footer-angel-sub {
+  font-size: 9px;
+  color: var(--sy-muted);
 }
 .sy-hero { position: relative; display: grid; grid-template-columns: 1.05fr 1fr; gap: 5%; padding-top: 64px; padding-bottom: 67px; align-items: center; }
 .sy-copy { position: relative; z-index: 2; }
